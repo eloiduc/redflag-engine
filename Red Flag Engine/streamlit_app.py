@@ -628,6 +628,16 @@ def page_view() -> None:
 
                 styled_hg = df_hg.style.apply(_flag_row_style, axis=1)
                 st.dataframe(styled_hg, use_container_width=True, hide_index=True)
+            else:
+                # Fall back to raw markdown if table parsing fails
+                body = "\n".join(
+                    ln for ln in hg_sec.splitlines()
+                    if not ln.startswith("## Hedging Intensity")
+                ).strip()
+                if body:
+                    st.markdown(body)
+                else:
+                    st.caption("No hedging intensity data for this report.")
 
     # ── Peer & Supplier Signals ───────────────────────────────────────────────
     ps_sec = sections.get("Peer & Supplier Signals", "")
@@ -767,6 +777,12 @@ def page_view() -> None:
             "belief backed by real capital, not analyst consensus. CONTRADICTS signals "
             "indicate the market is pricing a materially different outcome than management guidance."
         )
+    else:
+        st.divider()
+        st.caption(
+            "Prediction Market Context — no active markets found for this company "
+            "(Polymarket API may be unreachable, or no liquid markets exist for this ticker)."
+        )
 
     # ── Backtest Context ──────────────────────────────────────────────────────
     bt_sec = sections.get("Backtest Context", "")
@@ -778,6 +794,11 @@ def page_view() -> None:
             disclaimer_m = re.search(r"\*([^*]+)\*", bt_sec)
             if disclaimer_m:
                 st.caption(disclaimer_m.group(1).strip())
+    else:
+        st.caption(
+            "Backtest Context — no earnings date configured for this report. "
+            "Add an entry to earnings_dates.json to enable post-earnings return tracking."
+        )
 
     # ── Limitations & Methodology ────────────────────────────────────────────
     lim_sec  = sections.get("Limitations", "")

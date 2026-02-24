@@ -261,12 +261,12 @@ def _render_hedging_intensity(deltas: "list[HedgeDelta]") -> str:
         "Tier 2: expect/anticipate/believe…) per 100 words, by section. "
         "⚠️ flags sections where current-quarter hedging increased by > 3 percentage points.",
         "",
-        "| Section | Now (per 100 w) | Prev (per 100 w) | Δ | Flag |",
-        "|---------|----------------|-----------------|---|------|",
+        "| Section | Now (/100w) | Prev (/100w) | Chg | Flag |",
+        "|---------|------------|-------------|-----|------|",
     ]
     for d in deltas:
         delta_str = f"+{d.delta:.1f}" if d.delta >= 0 else f"{d.delta:.1f}"
-        flag_str  = "⚠️" if d.flag else ""
+        flag_str  = "FLAG" if d.flag else ""
         lines.append(
             f"| {d.section} | {d.now_score:.1f} | {d.prev_score:.1f} | {delta_str} | {flag_str} |"
         )

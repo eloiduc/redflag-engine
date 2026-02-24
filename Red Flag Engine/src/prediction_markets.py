@@ -138,7 +138,7 @@ class MarketClaimCrossRef(BaseModel):
 # HTTP helper
 # ---------------------------------------------------------------------------
 
-def _get_json(url: str, headers: dict[str, str] | None = None, timeout: int = 8) -> Any:
+def _get_json(url: str, headers: dict[str, str] | None = None, timeout: int = 12) -> Any:
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "RedFlagEngine/1.0")
     req.add_header("Accept",     "application/json")
@@ -155,7 +155,7 @@ def _get_json(url: str, headers: dict[str, str] | None = None, timeout: int = 8)
 class _PolymarketClient:
     """Polymarket Gamma public API — no authentication required."""
 
-    def search(self, query: str, limit: int = 20) -> list[PredictionMarket]:
+    def search(self, query: str, limit: int = 30) -> list[PredictionMarket]:
         params = urllib.parse.urlencode({
             "search": query,
             "active": "true",
@@ -354,7 +354,8 @@ def _compute_alignment(
 def _build_queries(company: str, claims: list[Claim]) -> list[str]:
     """Build targeted search queries: company name + category enrichments."""
     name = _COMPANY_NAMES.get(company.upper(), company)
-    queries: list[str] = [name]
+    # Start with ticker itself as first query, then full name
+    queries: list[str] = [company.upper(), name]
 
     category_enrichments = {
         "reg_legal":           f"{name} regulatory investigation",
@@ -376,7 +377,7 @@ def _build_queries(company: str, claims: list[Claim]) -> list[str]:
             seen.add(q)
             unique.append(q)
 
-    return unique[:4]  # 4 queries max to avoid hammering the API
+    return unique[:5]  # 5 queries max
 
 
 def _filter_and_rank(
@@ -403,13 +404,13 @@ def _filter_and_rank(
 
         mq_tokens = _tokenize(m.question)
 
-        # Hard filter: market question must mention the company or its name
+        # Hard filter: market question must mention the company ticker or primary name
         company_str  = company.lower()
-        name_primary = name.lower().split()[0]  # "Goldman" from "Goldman Sachs"
+        q_lower      = m.question.lower()
+        name_parts   = name.lower().split()      # all words of the company name
         if (
-            company_str  not in m.question.lower()
-            and name_primary not in m.question.lower()
-            and _jaccard(mq_tokens, company_tokens) < 0.04
+            company_str not in q_lower
+            and not any(part in q_lower for part in name_parts if len(part) > 3)
         ):
             continue
 

@@ -581,6 +581,47 @@ def page_view() -> None:
             st.checkbox(item, value=False, key=f"chk_{selected}_{i}")
         st.caption("Verify each item against the source transcript.")
 
+    # ── AI Announcement Sensitivity ──────────────────────────────────────────
+    ai_sec = sections.get("AI Announcement Sensitivity", "")
+    if ai_sec:
+        st.divider()
+        # Extract and display the sensitivity level as a top-line metric
+        level_m = re.search(
+            r"\*\*Sensitivity Level:\*\*\s*(CRITICAL|HIGH|MEDIUM|LOW|MINIMAL)",
+            ai_sec,
+        )
+        direction_m = re.search(
+            r"\*\*AI Exposure Direction:\*\*\s*([^\n]+)",
+            ai_sec,
+        )
+        level_color = {
+            "CRITICAL": "error",
+            "HIGH":     "warning",
+            "MEDIUM":   "warning",
+            "LOW":      "info",
+            "MINIMAL":  "info",
+        }
+        if level_m:
+            level = level_m.group(1)
+            direction = direction_m.group(1).strip() if direction_m else ""
+            col_lv, col_dir = st.columns([1, 3])
+            col_lv.metric("AI Sensitivity", level)
+            if direction:
+                col_dir.caption(direction)
+            fn = getattr(st, level_color.get(level, "info"))
+            if level in ("CRITICAL", "HIGH"):
+                fn(f"This stock carries **{level}** sensitivity to AI announcements.")
+        # Render the full section body (strip the first two header lines already shown above)
+        body_lines = ai_sec.splitlines()
+        # Drop the ## heading line and the two metadata bold lines for a clean body
+        body = "\n".join(
+            ln for ln in body_lines
+            if not ln.startswith("## AI Announcement Sensitivity")
+            and not ln.startswith("**Sensitivity Level:**")
+            and not ln.startswith("**AI Exposure Direction:**")
+        ).strip()
+        st.markdown(body)
+
     # ── Limitations & Methodology ────────────────────────────────────────────
     lim_sec  = sections.get("Limitations", "")
     meth_sec = sections.get("Methodology", "")

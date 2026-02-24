@@ -54,6 +54,7 @@ from segment import segment_doc
 from llm_extract import extract_claims
 from diff import match_claims
 from report import generate_report, save_report, ReportStats
+from ai_sensitivity import assess_ai_sensitivity
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +317,11 @@ def run_pipeline(
     # 4. Diff
     changes = match_claims(claims_now, claims_prev)
 
-    # 5. Report
+    # 5. AI sensitivity assessment
+    log.info("Assessing AI announcement sensitivity for %s…", company)
+    ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
+
+    # 6. Report
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -326,7 +331,10 @@ def run_pipeline(
         n_new         = sum(1 for c in changes if c.change_type.value == "new"),
         n_soft        = sum(1 for c in changes if c.match_quality == "soft"),
     )
-    report_md = generate_report(company, now_period, prev_period, changes, stats)
+    report_md = generate_report(
+        company, now_period, prev_period, changes, stats,
+        ai_sensitivity_md=ai_sensitivity_md,
+    )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 
     return str(out_path.resolve())
@@ -392,11 +400,15 @@ def run(
     log.info("  Claims: prior=%d  now=%d", len(claims_prev), len(claims_now))
 
     # 4. Diff
-    log.info("[4/5] Running change detection (threshold=%d)…", threshold)
+    log.info("[4/6] Running change detection (threshold=%d)…", threshold)
     changes = match_claims(claims_now, claims_prev, threshold=threshold)
 
-    # 5. Report
-    log.info("[5/5] Generating Markdown report…")
+    # 5. AI sensitivity assessment
+    log.info("[5/6] Assessing AI announcement sensitivity for %s…", company)
+    ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
+
+    # 6. Report
+    log.info("[6/6] Generating Markdown report…")
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -406,7 +418,10 @@ def run(
         n_new         = sum(1 for c in changes if c.change_type.value == "new"),
         n_soft        = sum(1 for c in changes if c.match_quality == "soft"),
     )
-    report_md = generate_report(company, now_period, prev_period, changes, stats)
+    report_md = generate_report(
+        company, now_period, prev_period, changes, stats,
+        ai_sensitivity_md=ai_sensitivity_md,
+    )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 
     return out_path

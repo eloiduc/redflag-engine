@@ -224,20 +224,24 @@ def _render_methodology() -> str:
 # ---------------------------------------------------------------------------
 
 def generate_report(
-    company:     str,
-    now_period:  str,
-    prev_period: str,
-    changes:     list[Change],
-    stats:       ReportStats | None = None,
+    company:            str,
+    now_period:         str,
+    prev_period:        str,
+    changes:            list[Change],
+    stats:              ReportStats | None = None,
+    ai_sensitivity_md:  str = "",
 ) -> str:
     """Render a complete Markdown report string from a list of Changes.
 
     Args:
-        company:     Company identifier (e.g. "BA").
-        now_period:  Label for the current quarter (e.g. "2025Q4").
-        prev_period: Label for the prior quarter (e.g. "2025Q3").
-        changes:     Output of diff.match_claims(), sorted by severity DESC.
-        stats:       Optional coverage statistics; uses empty defaults if None.
+        company:           Company identifier (e.g. "BA").
+        now_period:        Label for the current quarter (e.g. "2025Q4").
+        prev_period:       Label for the prior quarter (e.g. "2025Q3").
+        changes:           Output of diff.match_claims(), sorted by severity DESC.
+        stats:             Optional coverage statistics; uses empty defaults if None.
+        ai_sensitivity_md: Optional pre-rendered Markdown for the AI Sensitivity
+                           section (output of ai_sensitivity.assess_ai_sensitivity).
+                           If empty, the section is omitted.
 
     Returns:
         Complete Markdown document as a string.
@@ -250,9 +254,16 @@ def generate_report(
         _render_executive_summary(changes),
         _render_red_flags_table(changes),
         _render_monitor_checklist(),
+    ]
+
+    if ai_sensitivity_md.strip():
+        sections.append(ai_sensitivity_md.strip())
+
+    sections.extend([
         _render_limitations(),
         _render_methodology(),
-    ]
+    ])
+
     return "\n\n---\n\n".join(sections) + "\n"
 
 

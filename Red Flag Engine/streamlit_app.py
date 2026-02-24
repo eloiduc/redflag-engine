@@ -650,15 +650,6 @@ def page_view() -> None:
 
     st.divider()
 
-    # ── Monitor Checklist ────────────────────────────────────────────────────
-    chk_sec = sections.get("Monitor Checklist", "")
-    if chk_sec:
-        st.subheader("Monitor Checklist")
-        items = re.findall(r"- \[ \] (.+)", chk_sec)
-        for i, item in enumerate(items):
-            st.checkbox(item, value=False, key=f"chk_{selected}_{i}")
-        st.caption("Verify each item against the source transcript.")
-
     # ── AI Announcement Sensitivity ──────────────────────────────────────────
     ai_sec = sections.get("AI Announcement Sensitivity", "")
     if ai_sec:

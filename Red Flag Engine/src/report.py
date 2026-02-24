@@ -40,13 +40,6 @@ class ReportStats(BaseModel):
 _TOP_SUMMARY = 7
 _TOP_TABLE   = 10
 
-_MONITOR_CHECKLIST = [
-    "**Guidance** — Did management revise full-year targets up or down?",
-    "**Demand** — Are volume, backlog, or order trends deteriorating?",
-    "**Margins** — Are gross or operating margins compressing?",
-    "**Liquidity** — Has the cash position, leverage, or credit facility changed materially?",
-    "**Regulatory / Legal** — Are there new compliance issues, lawsuits, or regulatory inquiries?",
-]
 
 _SEVERITY_LABELS: dict[int, str] = {
     5: "Critical",
@@ -181,12 +174,6 @@ def _render_red_flags_table(changes: list[Change]) -> str:
 
     return "\n".join(lines)
 
-
-def _render_monitor_checklist() -> str:
-    lines = ["## Monitor Checklist", ""]
-    for item in _MONITOR_CHECKLIST:
-        lines.append(f"- [ ] {item}")
-    return "\n".join(lines)
 
 
 def _render_limitations() -> str:
@@ -436,7 +423,7 @@ def generate_report(
 
     # Section order:
     #   Header → Executive Summary → Red Flags → Abandoned Metrics
-    #   → Hedging Intensity → Peer Signals → Monitor Checklist
+    #   → Hedging Intensity → Peer Signals
     #   → AI Sensitivity → Prediction Market Context
     #   → Backtest Context → Limitations → Methodology
     parts: list[str] = [
@@ -446,7 +433,6 @@ def generate_report(
         _render_abandoned_metrics(_abandoned),
         _render_hedging_intensity(_hedge),
         _render_peer_signals(_peers),
-        _render_monitor_checklist(),
     ]
 
     if ai_sensitivity_md.strip():

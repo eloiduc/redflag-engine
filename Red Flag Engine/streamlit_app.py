@@ -33,10 +33,167 @@ if str(_SRC) not in sys.path:
 # ── Page config — must be the first Streamlit call ───────────────────────────
 st.set_page_config(
     page_title="Red Flag Engine",
-    page_icon="🚩",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ── Professional CSS — minimal, dark, no decoration ──────────────────────────
+st.markdown("""
+<style>
+/* Hide Streamlit chrome */
+#MainMenu          { visibility: hidden; }
+footer             { visibility: hidden; }
+header             { visibility: hidden; }
+[data-testid="stDecoration"] { display: none; }
+
+/* Base font */
+html, body, [class*="css"] {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #0c0c0c;
+    border-right: 1px solid #1c1c1c;
+}
+[data-testid="stSidebar"] * {
+    font-size: 12px;
+    letter-spacing: 0.03em;
+}
+
+/* Remove radio button label uppercase Streamlit adds */
+[data-testid="stSidebar"] label {
+    text-transform: uppercase;
+    font-size: 11px;
+    color: #666 !important;
+    letter-spacing: 0.08em;
+}
+
+/* Metric tiles */
+[data-testid="stMetric"] {
+    background-color: #111;
+    border: 1px solid #1e1e1e;
+    padding: 14px 18px;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 10px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555 !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 20px !important;
+    font-weight: 500;
+    color: #e0e0e0 !important;
+}
+
+/* Primary button */
+.stButton > button[kind="primary"] {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 2px;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #222;
+    border-color: #555;
+    color: #fff;
+}
+
+/* Secondary / default button */
+.stButton > button {
+    background-color: transparent;
+    border: 1px solid #2a2a2a;
+    color: #888;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 2px;
+}
+.stButton > button:hover {
+    border-color: #444;
+    color: #bbb;
+    background-color: #111;
+}
+
+/* Form submit button */
+[data-testid="stFormSubmitButton"] > button {
+    background-color: #111;
+    border: 1px solid #333;
+    color: #bbb;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    width: 100%;
+}
+[data-testid="stFormSubmitButton"] > button:hover {
+    background-color: #1a1a1a;
+    border-color: #555;
+    color: #fff;
+}
+
+/* Input fields */
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] select {
+    background-color: #0f0f0f;
+    border: 1px solid #222;
+    color: #ccc;
+    font-size: 12px;
+    border-radius: 2px;
+}
+
+/* Divider */
+hr {
+    border-color: #1c1c1c;
+    margin: 16px 0;
+}
+
+/* Headers */
+h1, h2, h3 {
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: #d0d0d0;
+}
+h1 { font-size: 18px; }
+h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #999; }
+h3 { font-size: 13px; }
+
+/* Alert / info / success / error */
+[data-testid="stAlert"] {
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    border: 1px solid #1c1c1c;
+}
+
+/* Caption */
+.stCaption {
+    color: #444 !important;
+    font-size: 11px !important;
+}
+
+/* Expander */
+[data-testid="stExpander"] {
+    border: 1px solid #1c1c1c;
+    border-radius: 2px;
+}
+
+/* Container border */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid #1c1c1c !important;
+    border-radius: 2px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── Ensure outputs/ and data/ exist at startup ───────────────────────────────
 os.makedirs(_OUTPUTS, exist_ok=True)
@@ -51,10 +208,9 @@ except (KeyError, FileNotFoundError):
 
 if not _api_key:
     st.error(
-        "**ANTHROPIC_API_KEY is not set.**  \n"
-        "• **Local:** add it to `.streamlit/secrets.toml`  \n"
-        "• **Cloud:** paste it in the Streamlit Community Cloud secrets panel  \n"
-        "• **CLI only:** add `ANTHROPIC_API_KEY=sk-ant-...` to `.env`"
+        "ANTHROPIC_API_KEY is not set.  \n"
+        "Local: add it to `.streamlit/secrets.toml`  \n"
+        "Cloud: paste it in the Streamlit Community Cloud secrets panel"
     )
     st.stop()
 
@@ -62,7 +218,7 @@ if not _api_key:
 os.environ["ANTHROPIC_API_KEY"] = _api_key
 
 # ── Sidebar navigation ───────────────────────────────────────────────────────
-_PAGES = ["📊 Dashboard", "📤 Generate Report", "📄 View Report"]
+_PAGES = ["Overview", "New Analysis", "Report"]
 
 # Transfer any pending programmatic navigation BEFORE the radio widget renders.
 # (Streamlit forbids writing session_state[key] after the widget owning that
@@ -72,12 +228,12 @@ if "_nav_to" in st.session_state:
     st.session_state["page"] = st.session_state.pop("_nav_to")
 
 with st.sidebar:
-    st.title("🚩 Red Flag Engine")
-    st.caption("Earnings Call Monitor")
+    st.markdown("**RED FLAG ENGINE**")
+    st.caption("Earnings Call Analysis")
     st.divider()
     page = st.radio("Navigation", _PAGES, key="page", label_visibility="collapsed")
     st.divider()
-    st.caption("Powered by Claude · Built with Streamlit")
+    st.caption("Claude · Streamlit")
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
@@ -126,7 +282,6 @@ def _split_sections(content: str) -> dict[str, str]:
 def _split_pipe_row(line: str) -> list[str]:
     """Split a Markdown table row on unescaped pipes; strip leading/trailing empties."""
     parts = re.split(r"(?<!\\)\|", line)
-    # Remove the empty strings that flank the outer |…|
     while parts and not parts[0].strip():
         parts.pop(0)
     while parts and not parts[-1].strip():
@@ -137,11 +292,11 @@ def _split_pipe_row(line: str) -> list[str]:
 def _parse_md_table(text: str) -> list[dict[str, str]]:
     """Parse a Markdown pipe table into a list of row dicts."""
     lines = [ln for ln in text.splitlines() if re.match(r"^\s*\|", ln)]
-    if len(lines) < 3:          # need header + separator + at least 1 data row
+    if len(lines) < 3:
         return []
     headers = _split_pipe_row(lines[0])
     rows: list[dict[str, str]] = []
-    for line in lines[2:]:      # skip header (0) and separator (1)
+    for line in lines[2:]:
         cells = _split_pipe_row(line)
         if len(cells) == len(headers):
             rows.append(dict(zip(headers, cells)))
@@ -150,37 +305,34 @@ def _parse_md_table(text: str) -> list[dict[str, str]]:
 
 def _sev_style(val: str) -> str:
     return {
-        "Critical":      "background-color: #8b0000; color: #ffffff",
-        "High":          "background-color: #b84c00; color: #ffffff",
-        "Medium":        "background-color: #7a5c00; color: #ffffff",
-        "Low":           "background-color: #3a3a3a; color: #cccccc",
-        "Informational": "background-color: #1e1e2e; color: #888888",
+        "Critical":      "background-color: #4a0000; color: #ffaaaa",
+        "High":          "background-color: #3a1800; color: #ffcc99",
+        "Medium":        "background-color: #2a2000; color: #ffe680",
+        "Low":           "background-color: #1a1a1a; color: #888888",
+        "Informational": "background-color: #111111; color: #555555",
     }.get(val, "")
 
 
 def _change_style(val: str) -> str:
-    if "WORSENED"  in val: return "background-color: #8b0000; color: #ffffff"
-    if "NEW"       in val: return "background-color: #003d99; color: #ffffff"
-    if "IMPROVED"  in val: return "background-color: #004d1a; color: #ffffff"
-    if "UNCHANGED" in val: return "background-color: #2a2a2a; color: #aaaaaa"
+    if "WORSENED"  in val: return "background-color: #4a0000; color: #ffaaaa"
+    if "NEW"       in val: return "background-color: #001a40; color: #99bbff"
+    if "IMPROVED"  in val: return "background-color: #001a0d; color: #66cc88"
+    if "UNCHANGED" in val: return "background-color: #111111; color: #555555"
     return ""
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
-# ║  PAGE 1 — Dashboard                                                       ║
+# ║  PAGE 1 — Overview                                                        ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 def page_dashboard() -> None:
-    st.header("📊 Dashboard")
+    st.header("Overview")
 
     reports = sorted(_OUTPUTS.glob("*.md"))
     if not reports:
-        st.info(
-            "No reports yet. Go to **📤 Generate Report** to create your first one."
-        )
+        st.info("No reports. Run an analysis first.")
         return
 
-    # Render cards in rows of 3
     for row_start in range(0, len(reports), 3):
         cols = st.columns(3)
         for col, md_path in zip(cols, reports[row_start : row_start + 3]):
@@ -191,32 +343,27 @@ def page_dashboard() -> None:
                     st.caption(f"{meta['now']} vs {meta['prev']}")
                     col_a, col_b = st.columns(2)
                     col_a.metric("Changes", meta["total_changes"])
-                    col_b.metric(
-                        "🔴 High+Critical",
-                        meta["high_critical"],
-                        delta_color="inverse",
-                    )
+                    col_b.metric("High / Critical", meta["high_critical"])
                     if st.button(
-                        "View Report →",
+                        "Open Report",
                         key=f"view_{meta['filename']}",
                         use_container_width=True,
                     ):
                         st.session_state["selected_report"] = meta["filename"]
-                        st.session_state["_nav_to"] = "📄 View Report"
+                        st.session_state["_nav_to"] = "Report"
                         st.rerun()
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
-# ║  PAGE 2 — Generate Report                                                 ║
+# ║  PAGE 2 — New Analysis                                                    ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 def page_generate() -> None:
-    st.header("📤 Generate Report")
-    st.caption("Upload two earnings call transcripts and let Claude compare them.")
+    st.header("New Analysis")
 
     with st.form("pipeline_form"):
         company = st.text_input(
-            "Company ticker",
+            "Ticker",
             placeholder="BA",
             max_chars=10,
         )
@@ -233,7 +380,7 @@ def page_generate() -> None:
             type=["txt", "pdf"],
         )
         submitted = st.form_submit_button(
-            "🚀 Generate Report",
+            "Run Analysis",
             use_container_width=True,
             type="primary",
         )
@@ -246,7 +393,7 @@ def page_generate() -> None:
     errors: list[str] = []
 
     if not company.strip():
-        errors.append("Company ticker is required.")
+        errors.append("Ticker is required.")
     if not now_period.strip():
         errors.append("Current quarter is required.")
     elif not _period_re.match(now_period.strip()):
@@ -256,9 +403,9 @@ def page_generate() -> None:
     elif not _period_re.match(prev_period.strip()):
         errors.append("Prior quarter must match format YYYYQ# (e.g. 2025Q3).")
     if now_file is None:
-        errors.append("Current quarter transcript file is required.")
+        errors.append("Current quarter transcript is required.")
     if prev_file is None:
-        errors.append("Prior quarter transcript file is required.")
+        errors.append("Prior quarter transcript is required.")
 
     if errors:
         for err in errors:
@@ -273,7 +420,7 @@ def page_generate() -> None:
     company_dir = _DATA / company
     company_dir.mkdir(parents=True, exist_ok=True)
 
-    now_ext  = Path(now_file.name).suffix.lower()   # ".txt" or ".pdf"
+    now_ext  = Path(now_file.name).suffix.lower()
     prev_ext = Path(prev_file.name).suffix.lower()
 
     now_save_path  = company_dir / f"{now_period}_transcript{now_ext}"
@@ -286,7 +433,7 @@ def page_generate() -> None:
     try:
         from src.main import run_pipeline  # deferred import; resolves src/ path
 
-        with st.spinner("⏳ Analysing transcripts with Claude…"):
+        with st.spinner("Running analysis..."):
             report_path = run_pipeline(
                 company     = company,
                 now_period  = now_period,
@@ -295,10 +442,9 @@ def page_generate() -> None:
                 prev_path   = str(prev_save_path),
             )
 
-        st.success("✅ Report generated successfully!")
-        st.balloons()
+        st.success("Analysis complete.")
         st.session_state["selected_report"] = os.path.basename(report_path)
-        st.session_state["_nav_to"] = "📄 View Report"
+        st.session_state["_nav_to"] = "Report"
         st.rerun()
 
     except Exception as exc:
@@ -307,18 +453,18 @@ def page_generate() -> None:
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
-# ║  PAGE 3 — View Report                                                     ║
+# ║  PAGE 3 — Report                                                          ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 def page_view() -> None:
     selected = st.session_state.get("selected_report")
     if not selected:
-        st.info("Select a report from the **📊 Dashboard** first.")
+        st.info("Select a report from the Overview first.")
         st.stop()
 
     report_path = _OUTPUTS / selected
     if not report_path.exists():
-        st.error(f"Report file not found: `{selected}`")
+        st.error(f"Report not found: {selected}")
         st.stop()
 
     content  = report_path.read_text(encoding="utf-8", errors="ignore")
@@ -340,17 +486,17 @@ def page_view() -> None:
     total_changes = int(total_m.group(1)) if total_m else 0
     high_critical = int(high_m.group(1))  if high_m  else 0
 
-    st.header(f"📄 {company_val} — Red Flag Report")
+    st.header(f"{company_val} — Earnings Analysis")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Company",          company_val)
-    col2.metric("Current quarter",  now_val)
-    col3.metric("Prior quarter",    prev_val)
-    col4.metric("🔴 High+Critical", high_critical)
-    st.caption(f"Generated {ts_val} · {total_changes} total changes detected")
+    col1.metric("Ticker",          company_val)
+    col2.metric("Current Quarter", now_val)
+    col3.metric("Prior Quarter",   prev_val)
+    col4.metric("High / Critical", high_critical)
+    st.caption(f"Generated {ts_val}  ·  {total_changes} changes detected")
 
     # ── Disclaimer ───────────────────────────────────────────────────────────
-    disc_m = re.search(r"> ⚠️ \*\*Disclaimer:\*\* (.+?)(?=\n\n|\Z)", hdr, re.DOTALL)
+    disc_m = re.search(r"> .*?\*\*Disclaimer:\*\* (.+?)(?=\n\n|\Z)", hdr, re.DOTALL)
     if disc_m:
         st.warning(disc_m.group(1).strip())
 
@@ -375,29 +521,27 @@ def page_view() -> None:
 
     # ── Red Flags Table ──────────────────────────────────────────────────────
     rf_sec = sections.get("Red Flags", "")
-    st.subheader("🚩 Red Flags")
+    st.subheader("Findings")
     if rf_sec:
         rows = _parse_md_table(rf_sec)
-        # Drop the "no changes" placeholder row if present
         rows = [r for r in rows if r.get("#", "—") != "—"]
 
         if not rows:
-            st.info("No material changes detected in this report.")
+            st.info("No material changes detected.")
         else:
             df = pd.DataFrame(rows)
 
-            # ── Filters ──────────────────────────────────────────────────────
             all_sevs = ["Critical", "High", "Medium", "Low", "Informational"]
             all_cats = sorted(df["Category"].unique().tolist()) if "Category" in df.columns else []
 
             fc1, fc2 = st.columns(2)
             sel_sev = fc1.multiselect(
-                "Filter by severity",
+                "Severity",
                 options=all_sevs,
                 default=all_sevs,
             )
             sel_cat = fc2.multiselect(
-                "Filter by category",
+                "Category",
                 options=all_cats,
                 default=all_cats,
             )
@@ -424,35 +568,35 @@ def page_view() -> None:
 
                 st.dataframe(styled, use_container_width=True, column_config=col_cfg)
     else:
-        st.info("Red Flags section not found in this report.")
+        st.info("Findings section not found in this report.")
 
     st.divider()
 
     # ── Monitor Checklist ────────────────────────────────────────────────────
     chk_sec = sections.get("Monitor Checklist", "")
     if chk_sec:
-        st.subheader("✅ Monitor Checklist")
+        st.subheader("Monitor Checklist")
         items = re.findall(r"- \[ \] (.+)", chk_sec)
         for i, item in enumerate(items):
             st.checkbox(item, value=False, key=f"chk_{selected}_{i}")
-        st.caption("Check items manually as you verify each point in the original transcript.")
+        st.caption("Verify each item against the source transcript.")
 
     # ── Limitations & Methodology ────────────────────────────────────────────
     lim_sec  = sections.get("Limitations", "")
     meth_sec = sections.get("Methodology", "")
     combined = "\n\n".join(s for s in [lim_sec, meth_sec] if s)
     if combined:
-        with st.expander("⚠️ Limitations & Methodology", expanded=False):
+        with st.expander("Limitations & Methodology", expanded=False):
             st.markdown(combined)
 
     st.divider()
 
-    # ── Download button ──────────────────────────────────────────────────────
+    # ── Download ──────────────────────────────────────────────────────────────
     with open(report_path, encoding="utf-8") as fh:
         raw_content = fh.read()
 
     st.download_button(
-        label="⬇️ Download .md report",
+        label="Export Report (.md)",
         data=raw_content,
         file_name=selected,
         mime="text/markdown",
@@ -463,9 +607,9 @@ def page_view() -> None:
 # ║  Router                                                                   ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
-if page == "📊 Dashboard":
+if page == "Overview":
     page_dashboard()
-elif page == "📤 Generate Report":
+elif page == "New Analysis":
     page_generate()
-elif page == "📄 View Report":
+elif page == "Report":
     page_view()

@@ -37,21 +37,23 @@ _SEP_LEN   = len(_SEPARATOR)   # 2
 
 _SPEAKER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # operator: line starts with "OPERATOR" or "Operator"
-    ("operator", re.compile(r"(?m)^OPERATOR\b|^Operator\b")),
+    ("operator", re.compile(r"^OPERATOR\b|^Operator\b", re.MULTILINE)),
     # analyst: "your next question", "next question comes from", or
     # a capitalised name followed by a colon at line start (analyst intro lines)
     ("analyst",  re.compile(
-        r"(?mi)^[A-Z][A-Z\s\-']+:\s|"          # e.g. "JOHN DOE: ..."
+        r"^[A-Z][A-Z\s\-']+:\s|"               # e.g. "JOHN DOE: ..."
         r"your next question|"
         r"next question comes from|"
         r"our next question|"
-        r"\banalyst\b"
+        r"\banalyst\b",
+        re.MULTILINE | re.IGNORECASE,
     )),
     # management: CFO/CEO/President/VP titles, or "Thank you, operator" opener
     ("management", re.compile(
-        r"(?mi)\b(CFO|CEO|President|COO|CTO|EVP|SVP|VP|"
+        r"\b(CFO|CEO|President|COO|CTO|EVP|SVP|VP|"
         r"Chief Financial|Chief Executive|Chief Operating)\b|"
-        r"(?m)^Thank you,?\s+[Oo]perator"
+        r"^Thank you,?\s+[Oo]perator",
+        re.MULTILINE | re.IGNORECASE,
     )),
 ]
 

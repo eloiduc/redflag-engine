@@ -64,6 +64,13 @@ os.environ["ANTHROPIC_API_KEY"] = _api_key
 # ── Sidebar navigation ───────────────────────────────────────────────────────
 _PAGES = ["📊 Dashboard", "📤 Generate Report", "📄 View Report"]
 
+# Transfer any pending programmatic navigation BEFORE the radio widget renders.
+# (Streamlit forbids writing session_state[key] after the widget owning that
+#  key has been instantiated, so we stage the target in "_nav_to" and apply it
+#  here, at the very top of each re-run.)
+if "_nav_to" in st.session_state:
+    st.session_state["page"] = st.session_state.pop("_nav_to")
+
 with st.sidebar:
     st.title("🚩 Red Flag Engine")
     st.caption("Earnings Call Monitor")
@@ -195,7 +202,7 @@ def page_dashboard() -> None:
                         use_container_width=True,
                     ):
                         st.session_state["selected_report"] = meta["filename"]
-                        st.session_state["page"] = "📄 View Report"
+                        st.session_state["_nav_to"] = "📄 View Report"
                         st.rerun()
 
 
@@ -291,7 +298,7 @@ def page_generate() -> None:
         st.success("✅ Report generated successfully!")
         st.balloons()
         st.session_state["selected_report"] = os.path.basename(report_path)
-        st.session_state["page"] = "📄 View Report"
+        st.session_state["_nav_to"] = "📄 View Report"
         st.rerun()
 
     except Exception as exc:

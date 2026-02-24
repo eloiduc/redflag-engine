@@ -353,6 +353,30 @@ def page_dashboard() -> None:
                         st.session_state["_nav_to"] = "Report"
                         st.rerun()
 
+    st.divider()
+
+    # ── Signal Validation (Backtest) ─────────────────────────────────────────
+    with st.expander("📈 Signal Validation (Backtest)", expanded=False):
+        try:
+            from backtest import load_backtest_summary
+            dates_path = _APP_ROOT / "earnings_dates.json"
+            df_bt = load_backtest_summary(_OUTPUTS, dates_path)
+            if hasattr(df_bt, "empty") and df_bt.empty:
+                st.info(
+                    "No backtest data available.  "
+                    "Populate `earnings_dates.json` at the project root to enable."
+                )
+            else:
+                n = len(df_bt)
+                st.dataframe(df_bt, use_container_width=True, hide_index=True)
+                if n < 20:
+                    st.caption(
+                        f"n={n} — insufficient sample size for statistical inference. "
+                        "Retrospective data only — not a trading signal."
+                    )
+        except Exception as exc:
+            st.info(f"Signal validation unavailable: {exc}")
+
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
 # ║  PAGE 2 — New Analysis                                                    ║
@@ -572,6 +596,50 @@ def page_view() -> None:
 
     st.divider()
 
+    # ── Abandoned Metrics ─────────────────────────────────────────────────────
+    ab_sec = sections.get("Abandoned Metrics", "")
+    if ab_sec:
+        with st.expander("⚠️ Abandoned Metrics", expanded=True):
+            rows = _parse_md_table(ab_sec)
+            if rows:
+                df_ab = pd.DataFrame(rows)
+                st.dataframe(df_ab, use_container_width=True, hide_index=True)
+            else:
+                # Render the prose description if there's no table
+                body = "\n".join(
+                    ln for ln in ab_sec.splitlines()
+                    if not ln.startswith("## Abandoned Metrics")
+                ).strip()
+                st.markdown(body)
+
+    # ── Hedging Intensity ─────────────────────────────────────────────────────
+    hg_sec = sections.get("Hedging Intensity", "")
+    if hg_sec:
+        with st.expander("📊 Hedging Intensity", expanded=True):
+            rows = _parse_md_table(hg_sec)
+            if rows:
+                df_hg = pd.DataFrame(rows)
+
+                def _flag_row_style(row: pd.Series) -> list[str]:
+                    flag_val = row.get("Flag", "")
+                    if flag_val and flag_val.strip():
+                        return ["background-color: #3d1a1a"] * len(row)
+                    return [""] * len(row)
+
+                styled_hg = df_hg.style.apply(_flag_row_style, axis=1)
+                st.dataframe(styled_hg, use_container_width=True, hide_index=True)
+
+    # ── Peer & Supplier Signals ───────────────────────────────────────────────
+    ps_sec = sections.get("Peer & Supplier Signals", "")
+    if ps_sec:
+        with st.expander("🌐 Peer & Supplier Signals", expanded=False):
+            rows = _parse_md_table(ps_sec)
+            if rows:
+                df_ps = pd.DataFrame(rows)
+                st.dataframe(df_ps, use_container_width=True, hide_index=True)
+
+    st.divider()
+
     # ── Monitor Checklist ────────────────────────────────────────────────────
     chk_sec = sections.get("Monitor Checklist", "")
     if chk_sec:
@@ -621,6 +689,95 @@ def page_view() -> None:
             and not ln.startswith("**AI Exposure Direction:**")
         ).strip()
         st.markdown(body)
+
+    # ── Prediction Market Context ─────────────────────────────────────────────
+    pm_sec = sections.get("Prediction Market Context", "")
+    if pm_sec:
+        st.divider()
+        st.subheader("Prediction Market Context")
+
+        # Surface CONTRADICTS count as a top-level alert
+        contra_count = len(re.findall(r"\*\*CONTRADICTS\*\*", pm_sec))
+        if contra_count:
+            st.error(
+                f"{contra_count} prediction market signal(s) contradict management guidance. "
+                "Review the cross-reference table below."
+            )
+
+        # Active Markets table
+        # The section has two sub-tables under ### Active Markets and ### Cross-Reference
+        active_block = re.search(
+            r"### Active Markets\n(.*?)(?=###|\Z)", pm_sec, re.DOTALL
+        )
+        crossref_block = re.search(
+            r"### Cross-Reference with Management Claims\n(.*?)(?=###|\Z)", pm_sec, re.DOTALL
+        )
+
+        if active_block:
+            st.caption("Active Markets")
+            rows = _parse_md_table(active_block.group(1))
+            if rows:
+                df_pm = pd.DataFrame(rows)
+                # Strip Markdown link syntax for display: [text](url) → text
+                if "Market" in df_pm.columns:
+                    df_pm["Market"] = df_pm["Market"].str.replace(
+                        r"\[([^\]]+)\]\([^)]+\)", r"\1", regex=True
+                    )
+                st.dataframe(df_pm, use_container_width=True, hide_index=True)
+
+        if crossref_block:
+            st.caption("Cross-Reference with Management Claims")
+            rows = _parse_md_table(crossref_block.group(1))
+            if rows:
+                df_cr = pd.DataFrame(rows)
+
+                # Strip link syntax
+                if "Market" in df_cr.columns:
+                    df_cr["Market"] = df_cr["Market"].str.replace(
+                        r"\[([^\]]+)\]\([^)]+\)", r"\1", regex=True
+                    )
+                # Strip bold markers from Alignment column
+                if "Alignment" in df_cr.columns:
+                    df_cr["Alignment"] = df_cr["Alignment"].str.replace(
+                        r"\*\*([^*]+)\*\*", r"\1", regex=True
+                    )
+
+                def _align_style(row: pd.Series) -> list[str]:
+                    a = row.get("Alignment", "")
+                    if "CONTRADICTS" in a:
+                        return ["background-color: #4a0000; color: #ffaaaa"] * len(row)
+                    if "CONFIRMS" in a:
+                        return ["background-color: #001a0d; color: #66cc88"] * len(row)
+                    return [""] * len(row)
+
+                styled_cr = df_cr.style.apply(_align_style, axis=1)
+                col_cfg: dict = {}
+                for col in ("Claim", "Interpretation"):
+                    if col in df_cr.columns:
+                        col_cfg[col] = st.column_config.TextColumn(width="large")
+                st.dataframe(
+                    styled_cr,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config=col_cfg,
+                )
+
+        st.caption(
+            "Source: Polymarket / Kalshi. Prediction markets reflect aggregate public "
+            "belief backed by real capital, not analyst consensus. CONTRADICTS signals "
+            "indicate the market is pricing a materially different outcome than management guidance."
+        )
+
+    # ── Backtest Context ──────────────────────────────────────────────────────
+    bt_sec = sections.get("Backtest Context", "")
+    if bt_sec:
+        with st.expander("📈 Backtest Context", expanded=False):
+            rows = _parse_md_table(bt_sec)
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            disclaimer_m = re.search(r"\*([^*]+)\*", bt_sec)
+            if disclaimer_m:
+                st.caption(disclaimer_m.group(1).strip())
 
     # ── Limitations & Methodology ────────────────────────────────────────────
     lim_sec  = sections.get("Limitations", "")

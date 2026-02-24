@@ -3,10 +3,17 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from diff import Change, ChangeType
+from diff import Change, ChangeType, AbandonedMetric
+
+if TYPE_CHECKING:
+    from hedge_score import HedgeDelta
+    from peer_contagion import PeerSignal
+    from backtest import PostEarningsReturns
+    from prediction_markets import PredictionMarket, MarketClaimCrossRef
 
 logger = logging.getLogger(__name__)
 
@@ -215,8 +222,171 @@ def _render_methodology() -> str:
         "RapidFuzz strategy: strict (`token_set_ratio` ≥ 72 on full claim text) then soft "
         "(same category, first 60 chars, ≥ 60). Severity is assigned by a deterministic "
         "heuristic based on change type, category risk, polarity, and confidence; "
-        "low-confidence claims are capped at severity 3.",
+        "low-confidence claims are capped at severity 3. Supplementary signals — hedging "
+        "intensity, abandoned metrics, peer contagion, and backtest context — are computed "
+        "deterministically with no additional LLM calls.",
     ])
+
+
+def _render_abandoned_metrics(abandoned: "list[AbandonedMetric]") -> str:
+    """Render the Abandoned Metrics section; returns '' if list is empty."""
+    if not abandoned:
+        return ""
+    lines = [
+        "## Abandoned Metrics",
+        "",
+        "The following categories were discussed in the prior quarter but appear absent "
+        "from the current transcript (≥ 2 prior claims, zero fuzzy matches now).",
+        "",
+        "| Category | Prior Quarter Statement | Evidence | Chunk | Confidence |",
+        "|----------|------------------------|----------|-------|------------|",
+    ]
+    for m in abandoned:
+        cat = m.category.value.replace("_", " ").title()
+        lines.append(
+            f"| {cat} | {_escape_pipe(m.representative_claim)} "
+            f"| {_escape_pipe(m.evidence)} | `{m.chunk_id}` | {m.confidence.value} |"
+        )
+    return "\n".join(lines)
+
+
+def _render_hedging_intensity(deltas: "list[HedgeDelta]") -> str:
+    """Render the Hedging Intensity section; returns '' if list is empty."""
+    if not deltas:
+        return ""
+    lines = [
+        "## Hedging Intensity",
+        "",
+        "Hedge word density (Tier 1: may/might/could/uncertain…; "
+        "Tier 2: expect/anticipate/believe…) per 100 words, by section. "
+        "⚠️ flags sections where current-quarter hedging increased by > 3 percentage points.",
+        "",
+        "| Section | Now (per 100 w) | Prev (per 100 w) | Δ | Flag |",
+        "|---------|----------------|-----------------|---|------|",
+    ]
+    for d in deltas:
+        delta_str = f"+{d.delta:.1f}" if d.delta >= 0 else f"{d.delta:.1f}"
+        flag_str  = "⚠️" if d.flag else ""
+        lines.append(
+            f"| {d.section} | {d.now_score:.1f} | {d.prev_score:.1f} | {delta_str} | {flag_str} |"
+        )
+    return "\n".join(lines)
+
+
+def _render_peer_signals(signals: "list[PeerSignal]") -> str:
+    """Render the Peer & Supplier Signals section; returns '' if list is empty."""
+    if not signals:
+        return ""
+    lines = [
+        "## Peer & Supplier Signals",
+        "",
+        "Red flags surfaced from related companies' most recent reports. "
+        "These may indicate sector-level or supply-chain stress relevant to this company.",
+        "",
+        "| Source | Rel | Category | Evidence | Polarity | Sev | Report |",
+        "|--------|-----|----------|----------|----------|-----|--------|",
+    ]
+    for s in signals:
+        lines.append(
+            f"| {s.source_company} | {s.relationship} | {s.category} "
+            f"| {_escape_pipe(s.evidence)} | {s.polarity} | {s.sev} | `{s.report_filename}` |"
+        )
+    return "\n".join(lines)
+
+
+def _render_prediction_markets(
+    markets:   "list[PredictionMarket]",
+    crossrefs: "list[MarketClaimCrossRef]",
+) -> str:
+    """Render the Prediction Market Context section; returns '' if both lists are empty."""
+    if not markets and not crossrefs:
+        return ""
+
+    from datetime import date as _date
+    today = _date.today().isoformat()
+
+    lines = [
+        "## Prediction Market Context",
+        "",
+        f"Active markets sourced from Polymarket / Kalshi as of {today}. "
+        "Minimum volume: $5,000. Only markets with a strong probability signal "
+        "(Yes < 35% or Yes > 65%) are cross-referenced with management claims.",
+    ]
+
+    # ── Active Markets table ──────────────────────────────────────────────
+    if markets:
+        lines += [
+            "",
+            "### Active Markets",
+            "",
+            "| Platform | Market | Yes % | Volume (USD) | Expires |",
+            "|----------|--------|-------|--------------|---------|",
+        ]
+        for m in markets:
+            prob_str    = f"{m.yes_probability:.0%}"
+            vol_str     = f"${m.volume_usd:,.0f}"
+            expires_str = m.expires or "—"
+            q_display   = _escape_pipe(m.question)
+            if m.url:
+                q_display = f"[{q_display}]({m.url})"
+            lines.append(
+                f"| {m.platform} | {q_display} | {prob_str} | {vol_str} | {expires_str} |"
+            )
+
+    # ── Cross-reference table ─────────────────────────────────────────────
+    if crossrefs:
+        lines += [
+            "",
+            "### Cross-Reference with Management Claims",
+            "",
+            "| Alignment | Platform | Market | Prob. | Category | Claim | Interpretation |",
+            "|-----------|----------|--------|-------|----------|-------|----------------|",
+        ]
+        for r in crossrefs:
+            prob_str  = f"{r.yes_probability:.0%}"
+            q_display = _escape_pipe(r.market_question)
+            if r.url:
+                q_display = f"[{q_display}]({r.url})"
+            lines.append(
+                f"| **{r.alignment}** | {r.platform} | {q_display} | {prob_str} "
+                f"| {r.claim_category} | {_escape_pipe(r.claim_text)} "
+                f"| {_escape_pipe(r.interpretation)} |"
+            )
+
+        contra = sum(1 for r in crossrefs if r.alignment == "CONTRADICTS")
+        if contra:
+            lines += [
+                "",
+                f"> **{contra} CONTRADICTS signal(s) detected.** "
+                "Prediction markets are diverging from management guidance on the above "
+                "topics. These represent areas of elevated information asymmetry and "
+                "warrant independent verification before relying on management's narrative.",
+            ]
+
+    return "\n".join(lines)
+
+
+def _render_backtest_context(bt: "PostEarningsReturns") -> str:
+    """Render the Backtest Context section."""
+    def _fmt(r: Optional[float]) -> str:
+        if r is None:
+            return "—"
+        sign = "+" if r > 0 else ""
+        return f"{sign}{r * 100:.1f}%"
+
+    lines = [
+        "## Backtest Context",
+        "",
+        "| Window | Return |",
+        "|--------|--------|",
+        f"| 1-day post-earnings  | {_fmt(bt.ret_1d)} |",
+        f"| 5-day post-earnings  | {_fmt(bt.ret_5d)} |",
+        f"| 20-day post-earnings | {_fmt(bt.ret_20d)} |",
+        "",
+        f"*Based on earnings call date {bt.call_date}. "
+        "Retrospective data only — not a trading signal.*",
+    ]
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +400,12 @@ def generate_report(
     changes:            list[Change],
     stats:              ReportStats | None = None,
     ai_sensitivity_md:  str = "",
+    abandoned_metrics:  "list[AbandonedMetric] | None" = None,
+    hedge_deltas:       "list[HedgeDelta] | None" = None,
+    peer_signals:       "list[PeerSignal] | None" = None,
+    backtest_returns:   "PostEarningsReturns | None" = None,
+    pred_markets:       "list[PredictionMarket] | None" = None,
+    pred_crossref:      "list[MarketClaimCrossRef] | None" = None,
 ) -> str:
     """Render a complete Markdown report string from a list of Changes.
 
@@ -239,9 +415,11 @@ def generate_report(
         prev_period:       Label for the prior quarter (e.g. "2025Q3").
         changes:           Output of diff.match_claims(), sorted by severity DESC.
         stats:             Optional coverage statistics; uses empty defaults if None.
-        ai_sensitivity_md: Optional pre-rendered Markdown for the AI Sensitivity
-                           section (output of ai_sensitivity.assess_ai_sensitivity).
-                           If empty, the section is omitted.
+        ai_sensitivity_md: Optional pre-rendered AI Sensitivity section Markdown.
+        abandoned_metrics: Optional output of diff.find_abandoned_metrics().
+        hedge_deltas:      Optional output of hedge_score.diff_hedge_scores().
+        peer_signals:      Optional output of peer_contagion.load_peer_signals().
+        backtest_returns:  Optional output of backtest.compute_post_earnings_returns().
 
     Returns:
         Complete Markdown document as a string.
@@ -249,22 +427,45 @@ def generate_report(
     if stats is None:
         stats = ReportStats()
 
-    sections = [
+    # Normalize None → empty list for section renderers
+    _abandoned  = abandoned_metrics if abandoned_metrics is not None else []
+    _hedge      = hedge_deltas      if hedge_deltas      is not None else []
+    _peers      = peer_signals      if peer_signals      is not None else []
+    _p_markets  = pred_markets      if pred_markets      is not None else []
+    _p_crossref = pred_crossref     if pred_crossref     is not None else []
+
+    # Section order:
+    #   Header → Executive Summary → Red Flags → Abandoned Metrics
+    #   → Hedging Intensity → Peer Signals → Monitor Checklist
+    #   → AI Sensitivity → Prediction Market Context
+    #   → Backtest Context → Limitations → Methodology
+    parts: list[str] = [
         _render_header(company, now_period, prev_period, changes, stats),
         _render_executive_summary(changes),
         _render_red_flags_table(changes),
+        _render_abandoned_metrics(_abandoned),
+        _render_hedging_intensity(_hedge),
+        _render_peer_signals(_peers),
         _render_monitor_checklist(),
     ]
 
     if ai_sensitivity_md.strip():
-        sections.append(ai_sensitivity_md.strip())
+        parts.append(ai_sensitivity_md.strip())
 
-    sections.extend([
+    pm_section = _render_prediction_markets(_p_markets, _p_crossref)
+    if pm_section:
+        parts.append(pm_section)
+
+    if backtest_returns is not None:
+        parts.append(_render_backtest_context(backtest_returns))
+
+    parts.extend([
         _render_limitations(),
         _render_methodology(),
     ])
 
-    return "\n\n---\n\n".join(sections) + "\n"
+    # Filter out empty sections before joining
+    return "\n\n---\n\n".join(p for p in parts if p) + "\n"
 
 
 def save_report(

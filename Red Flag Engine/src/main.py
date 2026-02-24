@@ -52,9 +52,13 @@ import anthropic
 from ingest import load_doc
 from segment import segment_doc
 from llm_extract import extract_claims
-from diff import match_claims
+from diff import match_claims, find_abandoned_metrics
 from report import generate_report, save_report, ReportStats
 from ai_sensitivity import assess_ai_sensitivity
+from hedge_score import score_hedging, diff_hedge_scores
+from peer_contagion import load_peer_signals
+from backtest import compute_post_earnings_returns
+from prediction_markets import find_relevant_markets, cross_reference_with_claims
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +325,55 @@ def run_pipeline(
     log.info("Assessing AI announcement sensitivity for %s…", company)
     ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
 
-    # 6. Report
+    # 6. Hedging intensity
+    try:
+        now_hedge    = score_hedging(chunks_now)
+        prev_hedge   = score_hedging(chunks_prev)
+        hedge_deltas = diff_hedge_scores(now_hedge, prev_hedge)
+    except Exception as exc:
+        log.warning("Hedge scoring failed: %s", exc)
+        hedge_deltas = []
+
+    # 7. Abandoned metrics
+    try:
+        abandoned_metrics = find_abandoned_metrics(claims_now, claims_prev)
+    except Exception as exc:
+        log.warning("Abandoned metrics failed: %s", exc)
+        abandoned_metrics = []
+
+    # 8. Peer contagion
+    try:
+        peer_signals = load_peer_signals(
+            company,
+            _PROJECT_ROOT / "outputs",
+            _PROJECT_ROOT / "peer_map.json",
+        )
+    except Exception as exc:
+        log.warning("Peer contagion failed: %s", exc)
+        peer_signals = []
+
+    # 9. Backtest context
+    report_stem = f"{company}_{now_period}_vs_{prev_period}"
+    try:
+        backtest_returns = compute_post_earnings_returns(
+            report_stem + ".md",
+            _PROJECT_ROOT / "earnings_dates.json",
+        )
+    except Exception as exc:
+        log.warning("Backtest failed: %s", exc)
+        backtest_returns = None
+
+    # 10. Prediction market context
+    log.info("Fetching prediction market context for %s…", company)
+    try:
+        pred_markets = find_relevant_markets(company, claims_now, now_period)
+        pred_crossref = cross_reference_with_claims(pred_markets, claims_now)
+    except Exception as exc:
+        log.warning("Prediction markets failed: %s", exc)
+        pred_markets  = []
+        pred_crossref = []
+
+    # 11. Report
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -333,7 +385,13 @@ def run_pipeline(
     )
     report_md = generate_report(
         company, now_period, prev_period, changes, stats,
-        ai_sensitivity_md=ai_sensitivity_md,
+        ai_sensitivity_md = ai_sensitivity_md,
+        abandoned_metrics = abandoned_metrics,
+        hedge_deltas      = hedge_deltas,
+        peer_signals      = peer_signals,
+        backtest_returns  = backtest_returns,
+        pred_markets      = pred_markets,
+        pred_crossref     = pred_crossref,
     )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 
@@ -400,15 +458,67 @@ def run(
     log.info("  Claims: prior=%d  now=%d", len(claims_prev), len(claims_now))
 
     # 4. Diff
-    log.info("[4/6] Running change detection (threshold=%d)…", threshold)
+    log.info("[4/10] Running change detection (threshold=%d)…", threshold)
     changes = match_claims(claims_now, claims_prev, threshold=threshold)
 
     # 5. AI sensitivity assessment
-    log.info("[5/6] Assessing AI announcement sensitivity for %s…", company)
+    log.info("[5/10] Assessing AI announcement sensitivity for %s…", company)
     ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
 
-    # 6. Report
-    log.info("[6/6] Generating Markdown report…")
+    # 6. Hedging intensity
+    log.info("[6/10] Scoring hedging language intensity…")
+    try:
+        now_hedge    = score_hedging(chunks_now)
+        prev_hedge   = score_hedging(chunks_prev)
+        hedge_deltas = diff_hedge_scores(now_hedge, prev_hedge)
+    except Exception as exc:
+        log.warning("Hedge scoring failed: %s", exc)
+        hedge_deltas = []
+
+    # 7. Abandoned metrics
+    log.info("[7/10] Detecting abandoned metrics…")
+    try:
+        abandoned_metrics = find_abandoned_metrics(claims_now, claims_prev)
+    except Exception as exc:
+        log.warning("Abandoned metrics failed: %s", exc)
+        abandoned_metrics = []
+
+    # 8. Peer contagion
+    log.info("[8/10] Loading peer and supplier signals…")
+    try:
+        peer_signals = load_peer_signals(
+            company,
+            _PROJECT_ROOT / "outputs",
+            _PROJECT_ROOT / "peer_map.json",
+        )
+    except Exception as exc:
+        log.warning("Peer contagion failed: %s", exc)
+        peer_signals = []
+
+    # 9. Backtest context
+    log.info("[9/11] Computing post-earnings returns…")
+    report_stem = f"{company}_{now_period}_vs_{prev_period}"
+    try:
+        backtest_returns = compute_post_earnings_returns(
+            report_stem + ".md",
+            _PROJECT_ROOT / "earnings_dates.json",
+        )
+    except Exception as exc:
+        log.warning("Backtest failed: %s", exc)
+        backtest_returns = None
+
+    # 10. Prediction market context
+    log.info("[10/11] Fetching prediction market context for %s…", company)
+    try:
+        pred_markets  = find_relevant_markets(company, claims_now, now_period)
+        pred_crossref = cross_reference_with_claims(pred_markets, claims_now)
+    except Exception as exc:
+        log.warning("Prediction markets failed: %s", exc)
+        pred_markets  = []
+        pred_crossref = []
+
+    # 11. Report
+    log.info("[11/11] Generating Markdown report…")
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -420,7 +530,13 @@ def run(
     )
     report_md = generate_report(
         company, now_period, prev_period, changes, stats,
-        ai_sensitivity_md=ai_sensitivity_md,
+        ai_sensitivity_md = ai_sensitivity_md,
+        abandoned_metrics = abandoned_metrics,
+        hedge_deltas      = hedge_deltas,
+        peer_signals      = peer_signals,
+        backtest_returns  = backtest_returns,
+        pred_markets      = pred_markets,
+        pred_crossref     = pred_crossref,
     )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from enum import Enum
 from typing import Any
 
@@ -116,6 +117,17 @@ Return JSON with this exact schema:
 
 MAX_CLAIMS_PER_CHUNK = 6
 MAX_EVIDENCE_WORDS   = 25
+MIN_CLAIM_WORDS      = 7   # shorter claims are almost always boilerplate
+
+# Patterns that identify corporate header / speaker-intro lines
+_TITLE_PATTERN = re.compile(
+    r"\b(CEO|CFO|COO|CTO|CMO|President|Officer|Director|Chairman|Treasurer)\b",
+    re.IGNORECASE,
+)
+_CORP_SUFFIX_PATTERN = re.compile(
+    r"\b(Inc\.|Holdings|Corporation|Corp\.|Ltd\.?|LLC|PLC|S\.A\.)\b",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +165,22 @@ def _filter_claims(
     valid: list[Claim] = []
     for claim in claims:
         ev = claim.evidence.strip()
+        cl = claim.claim.strip()
+
+        # Check 0a — minimum claim length (drops boilerplate like speaker intros)
+        if len(cl.split()) < MIN_CLAIM_WORDS:
+            logger.debug(
+                "%s: DROP claim too short (%d words) | claim: %.60s",
+                chunk_id, len(cl.split()), cl,
+            )
+            continue
+
+        # Check 0b — corporate header pattern (title + company suffix in same claim)
+        if _TITLE_PATTERN.search(cl) and _CORP_SUFFIX_PATTERN.search(cl):
+            logger.debug(
+                "%s: DROP boilerplate header claim | claim: %.80s", chunk_id, cl,
+            )
+            continue
 
         # Check 1 — non-empty (also caught by Pydantic validator, belt-and-suspenders)
         if not ev:

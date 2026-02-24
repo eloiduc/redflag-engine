@@ -246,7 +246,7 @@ def _render_hedging_intensity(deltas: "list[HedgeDelta]") -> str:
         "",
         "Hedge word density (Tier 1: may/might/could/uncertain…; "
         "Tier 2: expect/anticipate/believe…) per 100 words, by section. "
-        "⚠️ flags sections where current-quarter hedging increased by > 3 percentage points.",
+        "FLAG marks sections where hedging shifted by > 3 percentage points in either direction.",
         "",
         "| Section | Now (/100w) | Prev (/100w) | Chg | Flag |",
         "|---------|------------|-------------|-----|------|",

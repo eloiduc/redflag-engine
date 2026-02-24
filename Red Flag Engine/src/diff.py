@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-MATCH_THRESHOLD:      int = 72   # strict pass threshold
+MATCH_THRESHOLD:      int = 65   # strict pass threshold
 SOFT_THRESHOLD:       int = 60   # soft pass threshold (same-category, first 60 chars)
 SOFT_WINDOW:          int = 60   # chars used for soft comparison
 

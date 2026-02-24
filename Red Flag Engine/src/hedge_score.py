@@ -174,7 +174,7 @@ def diff_hedge_scores(
             now_score  = round(now_val,  2),
             prev_score = round(prev_val, 2),
             delta      = delta,
-            flag       = delta > _FLAG_DELTA_PP,
+            flag       = abs(delta) > _FLAG_DELTA_PP,
         ))
 
     # Sort by absolute delta descending; flagged rows first on ties
@@ -182,7 +182,7 @@ def diff_hedge_scores(
 
     flagged = sum(1 for d in deltas if d.flag)
     logger.info(
-        "Hedge diff: %d sections  flagged=%d  (threshold=+%.1f pp)",
+        "Hedge diff: %d sections  flagged=%d  (threshold=±%.1f pp)",
         len(deltas), flagged, _FLAG_DELTA_PP,
     )
     return deltas

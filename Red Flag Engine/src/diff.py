@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from enum import Enum
 from typing import Optional
 
@@ -302,3 +303,109 @@ def match_claims(
     )
 
     return changes
+
+
+# ---------------------------------------------------------------------------
+# Abandoned metric detection
+# ---------------------------------------------------------------------------
+
+class AbandonedMetric(BaseModel):
+    """A claim category that was prominent last quarter but absent this quarter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category:             Category
+    representative_claim: str    # most-confident prev claim text for this category
+    evidence:             str    # evidence quote from the representative claim
+    chunk_id:             str    # chunk_id of the representative claim
+    confidence:           Confidence  # high ≥3 prev claims, medium ≥2
+
+
+def find_abandoned_metrics(
+    claims_now:  list[Claim],
+    claims_prev: list[Claim],
+    threshold:   int = MATCH_THRESHOLD,
+) -> list[AbandonedMetric]:
+    """Identify claim categories present last quarter but absent this quarter.
+
+    A category is "abandoned" when:
+      - It has ≥ 2 prior-quarter claims, AND
+      - It is not an all-positive, non-guidance category (these may drop off
+        naturally without being a signal), AND
+      - No current-quarter claim has token_set_ratio ≥ SOFT_THRESHOLD against
+        any prior-quarter claim in that category.
+
+    Args:
+        claims_now:  Claims extracted from the current quarter.
+        claims_prev: Claims extracted from the prior quarter.
+        threshold:   Ignored (kept for API symmetry with match_claims).
+
+    Returns:
+        List of :class:`AbandonedMetric` sorted by confidence DESC then
+        category name ASC.  Empty list if claims_prev is empty.
+    """
+    if not claims_prev:
+        return []
+
+    # ── Group prior claims by category ───────────────────────────────────
+    by_cat: dict[Category, list[Claim]] = defaultdict(list)
+    for c in claims_prev:
+        by_cat[c.category].append(c)
+
+    abandoned: list[AbandonedMetric] = []
+
+    for cat, prev_claims_in_cat in by_cat.items():
+        # ── Skip if too few prior claims ──────────────────────────────────
+        if len(prev_claims_in_cat) < 2:
+            continue
+
+        # ── Skip all-positive, non-guidance categories ─────────────────────
+        # Positive signals naturally drop off — not a red flag unless guidance
+        all_positive = all(c.polarity == Polarity.positive for c in prev_claims_in_cat)
+        if all_positive and cat != Category.guidance:
+            continue
+
+        # ── Check for any current-quarter match above SOFT_THRESHOLD ─────
+        category_abandoned = True
+        for prev_c in prev_claims_in_cat:
+            for now_c in claims_now:
+                score = token_set_ratio(prev_c.claim, now_c.claim)
+                if score >= SOFT_THRESHOLD:
+                    category_abandoned = False
+                    break
+            if not category_abandoned:
+                break
+
+        if not category_abandoned:
+            continue
+
+        # ── Pick representative claim: highest confidence, then longest ───
+        rep = max(
+            prev_claims_in_cat,
+            key=lambda c: (CONF_ORDER[c.confidence], len(c.claim)),
+        )
+
+        # ── Assign confidence based on count ─────────────────────────────
+        count = len(prev_claims_in_cat)
+        if count >= 3:
+            conf = Confidence.high
+        else:
+            conf = Confidence.medium   # count == 2 by the ≥2 guard above
+
+        abandoned.append(AbandonedMetric(
+            category             = cat,
+            representative_claim = rep.claim,
+            evidence             = rep.evidence,
+            chunk_id             = rep.chunk_id,
+            confidence           = conf,
+        ))
+
+    # Sort: confidence DESC, then category name ASC
+    abandoned.sort(key=lambda m: (-CONF_ORDER[m.confidence], m.category.value))
+
+    logger.info(
+        "Abandoned metrics: %d categories flagged (prev had %d categories with ≥2 claims)",
+        len(abandoned),
+        sum(1 for cl in by_cat.values() if len(cl) >= 2),
+    )
+    return abandoned

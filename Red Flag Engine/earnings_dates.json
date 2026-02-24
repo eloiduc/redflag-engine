@@ -1,0 +1,6 @@
+{
+  "_comment": "Map report filename stems to earnings call dates (ISO 8601). Key format: {COMPANY}_{NOW}_vs_{PREV}",
+  "BA_2025Q4_vs_2025Q3":   "2025-01-29",
+  "TSLA_2025Q4_vs_2025Q3": "2025-01-29",
+  "PYPL_2025Q4_vs_2025Q3": "2025-02-05"
+}

@@ -1,0 +1,12 @@
+{
+  "BA":   {"peers": ["LMT", "RTX", "NOC"],        "suppliers": ["HXL", "TDG", "SPR"]},
+  "TSLA": {"peers": ["GM",  "F",   "RIVN"],        "suppliers": ["APTV", "ALB"]},
+  "PYPL": {"peers": ["SQ",  "V",   "MA"],          "suppliers": []},
+  "NFLX": {"peers": ["DIS", "AMZN","PARA"],        "suppliers": []},
+  "AAPL": {"peers": ["MSFT","GOOGL","META"],       "suppliers": ["TSM", "AVGO", "QCOM"]},
+  "AMZN": {"peers": ["MSFT","GOOGL","ALIBABA"],    "suppliers": []},
+  "MSFT": {"peers": ["GOOGL","AAPL","ORCL"],       "suppliers": []},
+  "NVDA": {"peers": ["AMD", "INTC", "QCOM"],       "suppliers": ["TSM", "ASML"]},
+  "META": {"peers": ["GOOGL","SNAP","PINS"],       "suppliers": []},
+  "GOOGL":{"peers": ["MSFT","AAPL","META"],        "suppliers": []}
+}

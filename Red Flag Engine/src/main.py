@@ -59,6 +59,7 @@ from hedge_score import score_hedging, diff_hedge_scores
 from peer_contagion import load_peer_signals
 from backtest import compute_post_earnings_returns
 from prediction_markets import find_relevant_markets, cross_reference_with_claims
+from disruption_lag import compute_disruption_lag
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +374,15 @@ def run_pipeline(
         pred_markets  = []
         pred_crossref = []
 
-    # 11. Report
+    # 11. Disruption lag analysis
+    log.info("Computing AI disruption lag analysis for %s…", company)
+    try:
+        disruption_lag_result = compute_disruption_lag(company, claims_now, client)
+    except Exception as exc:
+        log.warning("Disruption lag failed: %s", exc)
+        disruption_lag_result = None
+
+    # 12. Report
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -392,6 +401,7 @@ def run_pipeline(
         backtest_returns  = backtest_returns,
         pred_markets      = pred_markets,
         pred_crossref     = pred_crossref,
+        disruption_lag    = disruption_lag_result,
     )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 
@@ -425,7 +435,7 @@ def run(
     log.info("Output dir    : %s", output_dir)
 
     # 1. Ingest
-    log.info("[1/11] Ingesting transcripts…")
+    log.info("[1/12] Ingesting transcripts…")
     doc_prev = load_doc(company, prev_period, prev_path)
     doc_now  = load_doc(company, now_period,  now_path)
 
@@ -435,7 +445,7 @@ def run(
         raise RuntimeError(f"Current transcript is empty after ingestion: {now_path}")
 
     # 2. Segment
-    log.info("[2/11] Segmenting transcripts…")
+    log.info("[2/12] Segmenting transcripts…")
     chunks_prev = segment_doc(doc_prev)
     chunks_now  = segment_doc(doc_now)
 
@@ -449,24 +459,24 @@ def run(
     # 3. Extract claims (both quarters)
     client = anthropic.Anthropic()
 
-    log.info("[3/11] Extracting claims — prior quarter (%d chunks)…", len(chunks_prev))
+    log.info("[3/12] Extracting claims — prior quarter (%d chunks)…", len(chunks_prev))
     claims_prev = extract_claims(chunks_prev, client)
 
-    log.info("[3/11] Extracting claims — current quarter (%d chunks)…", len(chunks_now))
+    log.info("[3/12] Extracting claims — current quarter (%d chunks)…", len(chunks_now))
     claims_now = extract_claims(chunks_now, client)
 
     log.info("  Claims: prior=%d  now=%d", len(claims_prev), len(claims_now))
 
     # 4. Diff
-    log.info("[4/11] Running change detection (threshold=%d)…", threshold)
+    log.info("[4/12] Running change detection (threshold=%d)…", threshold)
     changes = match_claims(claims_now, claims_prev, threshold=threshold)
 
     # 5. AI sensitivity assessment
-    log.info("[5/11] Assessing AI announcement sensitivity for %s…", company)
+    log.info("[5/12] Assessing AI announcement sensitivity for %s…", company)
     ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
 
     # 6. Hedging intensity
-    log.info("[6/11] Scoring hedging language intensity…")
+    log.info("[6/12] Scoring hedging language intensity…")
     try:
         now_hedge    = score_hedging(chunks_now)
         prev_hedge   = score_hedging(chunks_prev)
@@ -476,7 +486,7 @@ def run(
         hedge_deltas = []
 
     # 7. Abandoned metrics
-    log.info("[7/11] Detecting abandoned metrics…")
+    log.info("[7/12] Detecting abandoned metrics…")
     try:
         abandoned_metrics = find_abandoned_metrics(claims_now, claims_prev)
     except Exception as exc:
@@ -484,7 +494,7 @@ def run(
         abandoned_metrics = []
 
     # 8. Peer contagion
-    log.info("[8/11] Loading peer and supplier signals…")
+    log.info("[8/12] Loading peer and supplier signals…")
     try:
         peer_signals = load_peer_signals(
             company,
@@ -496,7 +506,7 @@ def run(
         peer_signals = []
 
     # 9. Backtest context
-    log.info("[9/11] Computing post-earnings returns…")
+    log.info("[9/12] Computing post-earnings returns…")
     report_stem = f"{company}_{now_period}_vs_{prev_period}"
     try:
         backtest_returns = compute_post_earnings_returns(
@@ -508,7 +518,7 @@ def run(
         backtest_returns = None
 
     # 10. Prediction market context
-    log.info("[10/11] Fetching prediction market context for %s…", company)
+    log.info("[10/12] Fetching prediction market context for %s…", company)
     try:
         pred_markets  = find_relevant_markets(company, claims_now, now_period)
         pred_crossref = cross_reference_with_claims(pred_markets, claims_now)
@@ -517,8 +527,16 @@ def run(
         pred_markets  = []
         pred_crossref = []
 
-    # 11. Report
-    log.info("[11/11] Generating Markdown report…")
+    # 11. Disruption lag analysis
+    log.info("[11/12] Computing AI disruption lag analysis for %s…", company)
+    try:
+        disruption_lag_result = compute_disruption_lag(company, claims_now, client)
+    except Exception as exc:
+        log.warning("Disruption lag failed: %s", exc)
+        disruption_lag_result = None
+
+    # 12. Report
+    log.info("[12/12] Generating Markdown report…")
     stats = ReportStats(
         n_chunks_now  = len(chunks_now),
         n_chunks_prev = len(chunks_prev),
@@ -537,6 +555,7 @@ def run(
         backtest_returns  = backtest_returns,
         pred_markets      = pred_markets,
         pred_crossref     = pred_crossref,
+        disruption_lag    = disruption_lag_result,
     )
     out_path  = save_report(report_md, company, now_period, prev_period, output_dir)
 

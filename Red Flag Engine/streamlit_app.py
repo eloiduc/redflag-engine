@@ -764,6 +764,89 @@ def page_view() -> None:
         ).strip()
         st.markdown(body)
 
+    # ── Disruption Lag Analysis ───────────────────────────────────────────────
+    dl_sec = sections.get("Disruption Lag Analysis", "")
+    if dl_sec:
+        st.divider()
+        st.subheader("Disruption Lag Analysis")
+
+        # Extract overall score and management awareness
+        score_m = re.search(
+            r"\*\*Disruption Lag Score:\*\*\s*(CRITICAL|HIGH|MEDIUM|LOW|MINIMAL)",
+            dl_sec,
+        )
+        aware_m = re.search(
+            r"\*\*Management AI Awareness:\*\*\s*(\w+)",
+            dl_sec,
+        )
+
+        _dl_score_color = {
+            "CRITICAL": "error",
+            "HIGH":     "error",
+            "MEDIUM":   "warning",
+            "LOW":      "info",
+            "MINIMAL":  "info",
+        }
+
+        if score_m:
+            dl_score    = score_m.group(1)
+            dl_aware    = aware_m.group(1) if aware_m else "—"
+            col_sc, col_aw, col_sp = st.columns([1, 1, 2])
+            col_sc.metric("Disruption Lag", dl_score)
+            col_aw.metric("Mgmt. Awareness", dl_aware.title())
+            fn = getattr(st, _dl_score_color.get(dl_score, "info"))
+            if dl_score in ("CRITICAL", "HIGH"):
+                fn(
+                    f"**{dl_score} disruption lag detected** — one or more core "
+                    "business functions appear economically replicable by currently "
+                    "available AI and have not yet been repriced by the market."
+                )
+
+        # Signals table
+        sig_block = re.search(
+            r"### Signals Detected\n(.*?)(?=###|\Z)", dl_sec, re.DOTALL
+        )
+        if sig_block:
+            rows = _parse_md_table(sig_block.group(1))
+            if rows:
+                df_dl = pd.DataFrame(rows)
+
+                # Colour rows by Lag column value
+                def _lag_row_style(row: pd.Series) -> list[str]:
+                    lag_cell = row.get("Lag", "")
+                    if "CRITICAL" in lag_cell:
+                        return ["background-color: #4a0000; color: #ffaaaa"] * len(row)
+                    if "HIGH" in lag_cell:
+                        return ["background-color: #3a1800; color: #ffcc99"] * len(row)
+                    if "MEDIUM" in lag_cell:
+                        return ["background-color: #2a2000; color: #ffe680"] * len(row)
+                    return [""] * len(row)
+
+                styled_dl = df_dl.style.apply(_lag_row_style, axis=1)
+                col_cfg_dl: dict = {}
+                for col in ("Moat Claim", "AI Capability", "Best Analogue"):
+                    if col in df_dl.columns:
+                        col_cfg_dl[col] = st.column_config.TextColumn(width="large")
+                st.dataframe(
+                    styled_dl,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config=col_cfg_dl,
+                )
+
+        # Signal details in an expander
+        detail_block = re.search(
+            r"### Signal Details\n(.*?)(?=_Disruption lag analysis|\Z)", dl_sec, re.DOTALL
+        )
+        if detail_block and detail_block.group(1).strip():
+            with st.expander("Signal Details", expanded=False):
+                st.markdown(detail_block.group(1).strip())
+
+        # Disclaimer / footnote
+        footnote_m = re.search(r"_Disruption lag analysis[^_]+_", dl_sec)
+        if footnote_m:
+            st.caption(footnote_m.group(0).strip("_"))
+
     # ── Prediction Market Context ─────────────────────────────────────────────
     pm_sec = sections.get("Prediction Market Context", "")
     if pm_sec:

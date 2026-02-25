@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from peer_contagion import PeerSignal
     from backtest import PostEarningsReturns
     from prediction_markets import PredictionMarket, MarketClaimCrossRef
+    from disruption_lag import DisruptionLagResult, DisruptionSignal
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +382,84 @@ def _render_prediction_markets(
     return "\n".join(lines)
 
 
+_DISRUPTION_LAG_SCORE_LABEL: dict[str, str] = {
+    "CRITICAL": "CRITICAL",
+    "HIGH":     "HIGH",
+    "MEDIUM":   "MEDIUM",
+    "LOW":      "LOW",
+    "MINIMAL":  "MINIMAL",
+}
+
+
+def _render_disruption_lag(result: "DisruptionLagResult") -> str:
+    """Render the Disruption Lag Analysis section as Markdown."""
+    lines = ["## Disruption Lag Analysis", ""]
+
+    score_label = _DISRUPTION_LAG_SCORE_LABEL.get(result.overall_score, result.overall_score)
+    lines.append(f"**Disruption Lag Score:** {score_label}")
+    lines.append(f"**Management AI Awareness:** {result.management_awareness.title()}")
+    lines.append("")
+    lines.append(result.analyst_narrative)
+    lines.append("")
+
+    if not result.signals:
+        lines.append(
+            "_No moat claims identified as economically replicable by currently "
+            "available AI capabilities._"
+        )
+        return "\n".join(lines)
+
+    # ── Summary table ─────────────────────────────────────────────────────
+    lines.append("### Signals Detected")
+    lines.append("")
+    lines.append(
+        "| # | Moat Claim | AI Capability | Viable Since | Lag | Replaceability | Best Analogue |"
+    )
+    lines.append("|---|---|---|---|---|---|---|")
+
+    for i, sig in enumerate(result.signals, 1):
+        claim_short = _escape_pipe(
+            sig.moat_claim[:90] + ("…" if len(sig.moat_claim) > 90 else "")
+        )
+        analogue   = _escape_pipe(sig.best_analogue or "—")
+        rep_pct    = f"{sig.replaceability_score:.0%}"
+        vs_short   = sig.viable_since[:7]          # "YYYY-MM"
+        lines.append(
+            f"| {i} | {claim_short} | {_escape_pipe(sig.capability_name)} | "
+            f"{vs_short} | **{sig.lag_months}mo** ({sig.lag_label}) | "
+            f"{rep_pct} | {analogue} |"
+        )
+
+    lines.append("")
+
+    # ── Per-signal detail ─────────────────────────────────────────────────
+    lines.append("### Signal Details")
+    lines.append("")
+    for i, sig in enumerate(result.signals, 1):
+        lines.append(
+            f"**Signal {i} — {sig.lag_label} lag ({sig.lag_months} months)**  "
+            f"*{sig.capability_name}*"
+        )
+        lines.append(f"> {_escape_pipe(sig.moat_claim)}")
+        lines.append(f"")
+        lines.append(f"*Replaceability ({sig.replaceability_score:.0%}):* "
+                     f"{sig.replaceability_reasoning}")
+        if sig.management_awareness_note:
+            lines.append(f"*Management awareness:* {sig.management_awareness_note}")
+        if sig.best_analogue:
+            lines.append(f"*Closest historical precedent:* {sig.best_analogue}")
+        lines.append("")
+
+    lines.append(
+        "_Disruption lag analysis identifies business functions already economically "
+        "replicable by frontier AI as of the analysis date.  This is a forward-looking "
+        "risk signal, not a confirmed repricing event.  Validate against current "
+        "valuation multiples, sector-wide disruption dynamics, and company-specific "
+        "transition plans before drawing portfolio conclusions._"
+    )
+    return "\n".join(lines)
+
+
 def _render_backtest_context(bt: "PostEarningsReturns") -> str:
     """Render the Backtest Context section."""
     def _fmt(r: Optional[float]) -> str:
@@ -421,6 +500,7 @@ def generate_report(
     backtest_returns:   "PostEarningsReturns | None" = None,
     pred_markets:       "list[PredictionMarket] | None" = None,
     pred_crossref:      "list[MarketClaimCrossRef] | None" = None,
+    disruption_lag:     "DisruptionLagResult | None" = None,
 ) -> str:
     """Render a complete Markdown report string from a list of Changes.
 
@@ -435,6 +515,7 @@ def generate_report(
         hedge_deltas:      Optional output of hedge_score.diff_hedge_scores().
         peer_signals:      Optional output of peer_contagion.load_peer_signals().
         backtest_returns:  Optional output of backtest.compute_post_earnings_returns().
+        disruption_lag:    Optional output of disruption_lag.compute_disruption_lag().
 
     Returns:
         Complete Markdown document as a string.
@@ -452,7 +533,7 @@ def generate_report(
     # Section order:
     #   Header → Executive Summary → Red Flags → Abandoned Metrics
     #   → Hedging Intensity → Peer Signals
-    #   → AI Sensitivity → Prediction Market Context
+    #   → AI Sensitivity → Disruption Lag Analysis → Prediction Market Context
     #   → Backtest Context → Limitations → Methodology
     parts: list[str] = [
         _render_header(company, now_period, prev_period, changes, stats),
@@ -465,6 +546,9 @@ def generate_report(
 
     if ai_sensitivity_md.strip():
         parts.append(ai_sensitivity_md.strip())
+
+    if disruption_lag is not None:
+        parts.append(_render_disruption_lag(disruption_lag))
 
     pm_section = _render_prediction_markets(_p_markets, _p_crossref)
     if pm_section:

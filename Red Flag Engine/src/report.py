@@ -50,10 +50,10 @@ _SEVERITY_LABELS: dict[int, str] = {
 }
 
 _CHANGE_BADGE: dict[ChangeType, str] = {
-    ChangeType.new:       "🆕 NEW",
-    ChangeType.worsened:  "🔴 WORSENED",
-    ChangeType.improved:  "🟢 IMPROVED",
-    ChangeType.unchanged: "⚪ UNCHANGED",
+    ChangeType.new:       "NEW",
+    ChangeType.worsened:  "WORSENED",
+    ChangeType.improved:  "IMPROVED",
+    ChangeType.unchanged: "UNCHANGED",
 }
 
 
@@ -91,11 +91,11 @@ def _render_header(
         f"| Total changes detected | {len(changes)} |",
         f"| High / Critical | **{high_critical}** |",
         "",
-        "> ⚠️ **Disclaimer:** This report is a triage aid only. It is NOT a trading signal, "
+        "> **Disclaimer:** This report is a triage aid only. It is NOT a trading signal, "
         "investment recommendation, or financial advice. It may contain false positives or "
         "miss subtle language. All findings must be independently verified by a qualified analyst.",
         "",
-        f"> 📊 **Coverage:** {stats.n_chunks_now} chunks analysed · "
+        f"> **Coverage:** {stats.n_chunks_now} chunks analysed · "
         f"{stats.n_claims_now} claims extracted (current) · "
         f"{stats.n_claims_prev} claims extracted (prior) · "
         f"{stats.n_matched} matched · "
@@ -206,7 +206,7 @@ def _render_methodology() -> str:
         "Claude extracts at most 6 claims per chunk using a strict zero-temperature prompt "
         "that requires a verbatim evidence quote (≤ 25 words) for every claim; claims without "
         "valid evidence are discarded. Quarter-over-quarter change detection uses a two-pass "
-        "RapidFuzz strategy: strict (`token_set_ratio` ≥ 72 on full claim text) then soft "
+        "RapidFuzz strategy: strict (`token_set_ratio` ≥ 65 on full claim text) then soft "
         "(same category, first 60 chars, ≥ 60). Severity is assigned by a deterministic "
         "heuristic based on change type, category risk, polarity, and confidence; "
         "low-confidence claims are capped at severity 3. Supplementary signals — hedging "

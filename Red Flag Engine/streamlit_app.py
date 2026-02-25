@@ -38,159 +38,221 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Professional CSS — minimal, dark, no decoration ──────────────────────────
+# ── Institutional CSS — Bloomberg-style dark terminal ─────────────────────────
 st.markdown("""
 <style>
-/* Hide Streamlit chrome */
-#MainMenu          { visibility: hidden; }
-footer             { visibility: hidden; }
-header             { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+#MainMenu, footer, header, [data-testid="stDecoration"] { display: none !important; }
 
-/* Base font */
 html, body, [class*="css"] {
     font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
+    background-color: #080808;
+    color: #c8c8c8;
 }
 
-/* Sidebar */
+/* ── Main content area ───────────────────────────────────────────────────── */
+.stApp, .main, [data-testid="stAppViewContainer"] {
+    background-color: #080808;
+}
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1400px;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background-color: #0c0c0c;
-    border-right: 1px solid #1c1c1c;
+    background-color: #060606;
+    border-right: 1px solid #181818;
 }
 [data-testid="stSidebar"] * {
-    font-size: 12px;
-    letter-spacing: 0.03em;
+    font-size: 11px;
+    letter-spacing: 0.04em;
 }
-
-/* Remove radio button label uppercase Streamlit adds */
 [data-testid="stSidebar"] label {
     text-transform: uppercase;
-    font-size: 11px;
-    color: #666 !important;
-    letter-spacing: 0.08em;
+    font-size: 10px;
+    color: #444 !important;
+    letter-spacing: 0.12em;
 }
 
-/* Metric tiles */
+/* ── Typography ──────────────────────────────────────────────────────────── */
+h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #e8e8e8;
+    text-transform: uppercase;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+h2 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #555;
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+h3 {
+    font-size: 12px;
+    font-weight: 500;
+    color: #999;
+    letter-spacing: 0.04em;
+}
+
+/* ── Metric tiles ────────────────────────────────────────────────────────── */
 [data-testid="stMetric"] {
-    background-color: #111;
-    border: 1px solid #1e1e1e;
-    padding: 14px 18px;
+    background-color: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    border-top: 2px solid #1e1e1e;
+    padding: 12px 16px;
 }
 [data-testid="stMetricLabel"] {
-    font-size: 10px !important;
+    font-size: 9px !important;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #555 !important;
+    letter-spacing: 0.14em;
+    color: #444 !important;
 }
 [data-testid="stMetricValue"] {
-    font-size: 20px !important;
-    font-weight: 500;
-    color: #e0e0e0 !important;
+    font-size: 22px !important;
+    font-weight: 400;
+    color: #ddd !important;
+    font-variant-numeric: tabular-nums;
 }
-
-/* Primary button */
-.stButton > button[kind="primary"] {
-    background-color: #1a1a1a;
-    border: 1px solid #333;
-    color: #ccc;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border-radius: 2px;
-}
-.stButton > button[kind="primary"]:hover {
-    background-color: #222;
-    border-color: #555;
-    color: #fff;
-}
-
-/* Secondary / default button */
-.stButton > button {
-    background-color: transparent;
-    border: 1px solid #2a2a2a;
-    color: #888;
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border-radius: 2px;
-}
-.stButton > button:hover {
-    border-color: #444;
-    color: #bbb;
-    background-color: #111;
-}
-
-/* Form submit button */
-[data-testid="stFormSubmitButton"] > button {
-    background-color: #111;
-    border: 1px solid #333;
-    color: #bbb;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border-radius: 2px;
-    width: 100%;
-}
-[data-testid="stFormSubmitButton"] > button:hover {
-    background-color: #1a1a1a;
-    border-color: #555;
-    color: #fff;
-}
-
-/* Input fields */
-[data-testid="stTextInput"] input,
-[data-testid="stSelectbox"] select {
-    background-color: #0f0f0f;
-    border: 1px solid #222;
-    color: #ccc;
-    font-size: 12px;
-    border-radius: 2px;
-}
-
-/* Divider */
-hr {
-    border-color: #1c1c1c;
-    margin: 16px 0;
-}
-
-/* Headers */
-h1, h2, h3 {
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: #d0d0d0;
-}
-h1 { font-size: 18px; }
-h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #999; }
-h3 { font-size: 13px; }
-
-/* Alert / info / success / error */
-[data-testid="stAlert"] {
-    border-radius: 2px;
-    font-size: 12px;
-}
-
-/* Dataframe */
-[data-testid="stDataFrame"] {
-    border: 1px solid #1c1c1c;
-}
-
-/* Caption */
-.stCaption {
-    color: #444 !important;
+[data-testid="stMetricDelta"] {
     font-size: 11px !important;
 }
 
-/* Expander */
-[data-testid="stExpander"] {
-    border: 1px solid #1c1c1c;
-    border-radius: 2px;
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.stButton > button[kind="primary"],
+.stButton > button {
+    background-color: #0d0d0d;
+    border: 1px solid #252525;
+    color: #999;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 1px;
+    transition: all 0.1s ease;
+}
+.stButton > button[kind="primary"]:hover,
+.stButton > button:hover {
+    background-color: #141414;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
 }
 
-/* Container border */
+/* ── Form submit ─────────────────────────────────────────────────────────── */
+[data-testid="stFormSubmitButton"] > button {
+    background-color: #0f1620;
+    border: 1px solid #1e3050;
+    color: #6a9fd8;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-radius: 1px;
+    width: 100%;
+}
+[data-testid="stFormSubmitButton"] > button:hover {
+    background-color: #141d2d;
+    border-color: #2a4a80;
+    color: #8ab8e8;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] select,
+[data-testid="stFileUploader"] {
+    background-color: #0a0a0a;
+    border: 1px solid #1e1e1e;
+    color: #bbb;
+    font-size: 12px;
+    border-radius: 1px;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+hr {
+    border: none;
+    border-top: 1px solid #141414;
+    margin: 20px 0;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: 1px;
+    font-size: 12px;
+    border-left-width: 3px;
+}
+
+/* ── Dataframe ───────────────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid #1a1a1a;
+}
+[data-testid="stDataFrame"] table {
+    font-size: 12px;
+}
+
+/* ── Caption ─────────────────────────────────────────────────────────────── */
+.stCaption, [data-testid="stCaptionContainer"] {
+    color: #3a3a3a !important;
+    font-size: 10px !important;
+    letter-spacing: 0.04em;
+}
+
+/* ── Expander ────────────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid #141414;
+    border-left: 2px solid #1e1e1e;
+    border-radius: 1px;
+    background-color: #0a0a0a;
+}
+[data-testid="stExpander"] summary {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+}
+[data-testid="stExpander"] summary:hover {
+    color: #888;
+}
+
+/* ── Container border ────────────────────────────────────────────────────── */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid #1c1c1c !important;
-    border-radius: 2px;
+    border: 1px solid #141414 !important;
+    border-radius: 1px;
+    background-color: #0a0a0a;
+}
+
+/* ── Multiselect ─────────────────────────────────────────────────────────── */
+[data-testid="stMultiSelect"] {
+    font-size: 12px;
+}
+
+/* ── Download button ─────────────────────────────────────────────────────── */
+[data-testid="stDownloadButton"] > button {
+    background-color: transparent;
+    border: 1px solid #1e1e1e;
+    color: #555;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 1px;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    border-color: #333;
+    color: #888;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+[data-testid="stSpinner"] {
+    font-size: 11px;
+    color: #444 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -228,12 +290,17 @@ if "_nav_to" in st.session_state:
     st.session_state["page"] = st.session_state.pop("_nav_to")
 
 with st.sidebar:
-    st.markdown("**RED FLAG ENGINE**")
-    st.caption("Earnings Call Analysis")
+    st.markdown(
+        "<div style='font-size:13px;font-weight:700;letter-spacing:0.12em;"
+        "text-transform:uppercase;color:#ccc;padding:4px 0 2px'>Red Flag Engine</div>"
+        "<div style='font-size:10px;letter-spacing:0.08em;color:#3a3a3a;padding-bottom:4px'>"
+        "Earnings Intelligence</div>",
+        unsafe_allow_html=True,
+    )
     st.divider()
     page = st.radio("Navigation", _PAGES, key="page", label_visibility="collapsed")
     st.divider()
-    st.caption("Claude · Streamlit")
+    st.caption("Powered by Claude")
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
@@ -328,9 +395,9 @@ def _change_style(val: str) -> str:
 def page_dashboard() -> None:
     st.header("Overview")
 
-    reports = sorted(_OUTPUTS.glob("*.md"))
+    reports = sorted(_OUTPUTS.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not reports:
-        st.info("No reports. Run an analysis first.")
+        st.info("No reports found. Run a new analysis to get started.")
         return
 
     for row_start in range(0, len(reports), 3):
@@ -339,8 +406,14 @@ def page_dashboard() -> None:
             meta = _parse_report_meta(md_path)
             with col:
                 with st.container(border=True):
-                    st.subheader(meta["company"])
-                    st.caption(f"{meta['now']} vs {meta['prev']}")
+                    st.markdown(
+                        f"<div style='font-size:15px;font-weight:600;letter-spacing:0.04em;"
+                        f"color:#ddd'>{meta['company']}</div>"
+                        f"<div style='font-size:10px;letter-spacing:0.06em;color:#3a3a3a;"
+                        f"text-transform:uppercase;margin-bottom:10px'>"
+                        f"{meta['now']} vs {meta['prev']}</div>",
+                        unsafe_allow_html=True,
+                    )
                     col_a, col_b = st.columns(2)
                     col_a.metric("Changes", meta["total_changes"])
                     col_b.metric("High / Critical", meta["high_critical"])
@@ -356,7 +429,7 @@ def page_dashboard() -> None:
     st.divider()
 
     # ── Signal Validation (Backtest) ─────────────────────────────────────────
-    with st.expander("📈 Signal Validation (Backtest)", expanded=False):
+    with st.expander("Signal Validation", expanded=False):
         try:
             from backtest import load_backtest_summary
             dates_path = _APP_ROOT / "earnings_dates.json"
@@ -384,6 +457,7 @@ def page_dashboard() -> None:
 
 def page_generate() -> None:
     st.header("New Analysis")
+    st.caption("Upload two earnings call transcripts to generate a comparative red-flag report.")
 
     with st.form("pipeline_form"):
         company = st.text_input(
@@ -457,7 +531,7 @@ def page_generate() -> None:
     try:
         from src.main import run_pipeline  # deferred import; resolves src/ path
 
-        with st.spinner("Running analysis..."):
+        with st.spinner("Analysing transcripts…"):
             report_path = run_pipeline(
                 company     = company,
                 now_period  = now_period,
@@ -466,7 +540,6 @@ def page_generate() -> None:
                 prev_path   = str(prev_save_path),
             )
 
-        st.success("Analysis complete.")
         st.session_state["selected_report"] = os.path.basename(report_path)
         st.session_state["_nav_to"] = "Report"
         st.rerun()
@@ -520,9 +593,9 @@ def page_view() -> None:
     st.caption(f"Generated {ts_val}  ·  {total_changes} changes detected")
 
     # ── Disclaimer ───────────────────────────────────────────────────────────
-    disc_m = re.search(r"> .*?\*\*Disclaimer:\*\* (.+?)(?=\n\n|\Z)", hdr, re.DOTALL)
+    disc_m = re.search(r"> \*\*Disclaimer:\*\* (.+?)(?=\n\n|\Z)", hdr, re.DOTALL)
     if disc_m:
-        st.warning(disc_m.group(1).strip())
+        st.caption(f"Triage aid only — {disc_m.group(1).strip()}")
 
     st.divider()
 
@@ -599,7 +672,7 @@ def page_view() -> None:
     # ── Abandoned Metrics ─────────────────────────────────────────────────────
     ab_sec = sections.get("Abandoned Metrics", "")
     if ab_sec:
-        with st.expander("⚠️ Abandoned Metrics", expanded=True):
+        with st.expander("Abandoned Metrics", expanded=True):
             rows = _parse_md_table(ab_sec)
             if rows:
                 df_ab = pd.DataFrame(rows)
@@ -615,7 +688,7 @@ def page_view() -> None:
     # ── Hedging Intensity ─────────────────────────────────────────────────────
     hg_sec = sections.get("Hedging Intensity", "")
     if hg_sec:
-        with st.expander("📊 Hedging Intensity", expanded=True):
+        with st.expander("Hedging Intensity", expanded=True):
             rows = _parse_md_table(hg_sec)
             if rows:
                 df_hg = pd.DataFrame(rows)
@@ -642,7 +715,7 @@ def page_view() -> None:
     # ── Peer & Supplier Signals ───────────────────────────────────────────────
     ps_sec = sections.get("Peer & Supplier Signals", "")
     if ps_sec:
-        with st.expander("🌐 Peer & Supplier Signals", expanded=False):
+        with st.expander("Peer & Supplier Signals", expanded=False):
             rows = _parse_md_table(ps_sec)
             if rows:
                 df_ps = pd.DataFrame(rows)
@@ -778,7 +851,7 @@ def page_view() -> None:
     # ── Backtest Context ──────────────────────────────────────────────────────
     bt_sec = sections.get("Backtest Context", "")
     if bt_sec:
-        with st.expander("📈 Backtest Context", expanded=False):
+        with st.expander("Backtest Context", expanded=False):
             rows = _parse_md_table(bt_sec)
             if rows:
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

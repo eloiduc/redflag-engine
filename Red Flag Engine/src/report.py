@@ -105,8 +105,11 @@ def _render_header(
 
 
 def _render_executive_summary(changes: list[Change]) -> str:
-    top   = changes[:_TOP_SUMMARY]
-    lines = ["## Executive Summary", ""]
+    # Only surface actionable signals — UNCHANGED items are informational and
+    # belong in the full table, not in the executive summary.
+    material = [c for c in changes if c.change_type != ChangeType.unchanged]
+    top      = material[:_TOP_SUMMARY]
+    lines    = ["## Executive Summary", ""]
     if not top:
         lines.append("_No material changes detected._")
         return "\n".join(lines)

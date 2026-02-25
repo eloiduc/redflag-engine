@@ -203,20 +203,20 @@ def _build_summary(
     cat = claim_now.category.value.replace("_", " ").title()
 
     if change_type == ChangeType.new:
-        return f"[NEW] {cat}: {claim_now.claim}"
+        return f"{cat}: {claim_now.claim}"
     if change_type == ChangeType.worsened:
         return (
-            f"[WORSENED] {cat}: sentiment shifted "
+            f"{cat}: sentiment shifted "
             f"{claim_prev.polarity.value} → {claim_now.polarity.value}. "
             f"{claim_now.claim}"
         )
     if change_type == ChangeType.improved:
         return (
-            f"[IMPROVED] {cat}: sentiment shifted "
+            f"{cat}: sentiment shifted "
             f"{claim_prev.polarity.value} → {claim_now.polarity.value}. "
             f"{claim_now.claim}"
         )
-    return f"[UNCHANGED] {cat}: {claim_now.claim}"
+    return f"{cat}: {claim_now.claim}"
 
 
 # ---------------------------------------------------------------------------

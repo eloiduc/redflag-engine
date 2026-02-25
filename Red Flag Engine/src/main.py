@@ -381,7 +381,7 @@ def run_pipeline(
         n_claims_prev = len(claims_prev),
         n_matched     = sum(1 for c in changes if c.change_type.value != "new"),
         n_new         = sum(1 for c in changes if c.change_type.value == "new"),
-        n_soft        = sum(1 for c in changes if c.match_quality == "soft"),
+        n_soft        = sum(1 for c in changes if c.match_quality in ("soft", "topic")),
     )
     report_md = generate_report(
         company, now_period, prev_period, changes, stats,
@@ -526,7 +526,7 @@ def run(
         n_claims_prev = len(claims_prev),
         n_matched     = sum(1 for c in changes if c.change_type.value != "new"),
         n_new         = sum(1 for c in changes if c.change_type.value == "new"),
-        n_soft        = sum(1 for c in changes if c.match_quality == "soft"),
+        n_soft        = sum(1 for c in changes if c.match_quality in ("soft", "topic")),
     )
     report_md = generate_report(
         company, now_period, prev_period, changes, stats,

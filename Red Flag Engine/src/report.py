@@ -143,11 +143,14 @@ def _render_red_flags_table(changes: list[Change]) -> str:
             analyst_tag = " ⁽ᴬ⁾"
             used_analyst = True
 
-        # ── Soft-match marker ─────────────────────────────────────────
+        # ── Soft/topic-match marker ───────────────────────────────────
         soft_tag = ""
         if c.match_quality == "soft":
-            soft_tag = " ⁽ˢ⁾"
+            soft_tag  = " ⁽ˢ⁾"
             used_soft = True
+        elif c.match_quality == "topic":
+            soft_tag  = " ⁽ᵀ⁾"
+            used_soft = True   # reuse flag — footnote block handles both
 
         ev_now  = _escape_pipe(c.now_evidence) + analyst_tag + soft_tag
         ck_now  = f"`{c.now_chunk_id}`"
@@ -170,6 +173,11 @@ def _render_red_flags_table(changes: list[Change]) -> str:
         lines.append(
             "> ⁽ˢ⁾ Matched via relaxed similarity (soft match) — verify manually against "
             "the original transcript."
+        )
+        lines.append(
+            "> ⁽ᵀ⁾ Matched via topic keyword overlap — same category, shared key terms. "
+            "The claims discuss the same topic but with different phrasing or specifics; "
+            "verify the polarity comparison against the original transcript."
         )
 
     return "\n".join(lines)

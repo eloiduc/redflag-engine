@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from enum import Enum
 from typing import Optional
@@ -19,6 +20,30 @@ logger = logging.getLogger(__name__)
 MATCH_THRESHOLD:      int = 65   # strict pass threshold
 SOFT_THRESHOLD:       int = 60   # soft pass threshold (same-category, first 60 chars)
 SOFT_WINDOW:          int = 60   # chars used for soft comparison
+
+# Pass 3: topic/keyword overlap — catches same topic, different phrasing
+TOPIC_OVERLAP_MIN:    int = 2    # minimum shared key terms to declare a topic match
+TOPIC_MIN_TERMS:      int = 3    # both claims must have ≥ this many key terms
+
+# Generic words that add noise to topic matching — keep this list tight so
+# that domain terms like "revenue", "margin", "guidance" still match.
+_TOPIC_STOP: frozenset[str] = frozenset({
+    "that", "this", "with", "from", "have", "will", "been", "were", "they",
+    "also", "more", "over", "into", "than", "their", "there", "would",
+    "could", "should", "about", "which", "going", "well", "just", "both",
+    "when", "then", "each", "what", "some", "such", "these", "those",
+    "still", "after", "before", "during", "said", "continue", "continued",
+    "remains", "remain", "remain", "given", "strong", "good", "very",
+})
+_TERM_RE: re.Pattern = re.compile(r"[A-Za-z0-9\-]+")
+
+
+def _key_terms(text: str) -> frozenset[str]:
+    """Extract significant tokens for topic overlap matching."""
+    return frozenset(
+        w.lower() for w in _TERM_RE.findall(text)
+        if len(w) >= 4 and w.lower() not in _TOPIC_STOP
+    )
 
 # Lower numeric value = more negative sentiment
 POLARITY_ORDER: dict[Polarity, int] = {
@@ -193,17 +218,23 @@ def match_claims(
 ) -> list[Change]:
     """Compare two claim lists and return classified, ranked Changes.
 
-    Two-pass matching strategy
-    --------------------------
-    Pass 1 (strict):  token_set_ratio on full claim text >= threshold.
-    Pass 2 (soft):    For unmatched claims only — token_set_ratio on the
-                      first SOFT_WINDOW chars, same category, >= SOFT_THRESHOLD.
+    Three-pass matching strategy
+    ----------------------------
+    Pass 1 (strict):  token_set_ratio on full claim text >= MATCH_THRESHOLD (65).
+                      Produces match_quality="strict".
+    Pass 2 (soft):    For unmatched claims — token_set_ratio on the first
+                      SOFT_WINDOW (60) chars, same category, >= SOFT_THRESHOLD (60).
                       Produces match_quality="soft".
+    Pass 3 (topic):   For still-unmatched claims — keyword overlap: ≥ TOPIC_OVERLAP_MIN
+                      (2) shared key terms (≥ 4 chars, non-stopword), same category.
+                      Catches same-topic claims phrased entirely differently across
+                      quarters (e.g. production rate numbers, post-event language).
+                      Produces match_quality="topic".
 
     Args:
         now_claims:  Claims from the current (newer) quarter.
         prev_claims: Claims from the prior quarter. May be empty.
-        threshold:   Strict match threshold (default 72).
+        threshold:   Strict match threshold (default 65).
 
     Returns:
         List of Change objects sorted by severity DESC, then confidence DESC.
@@ -247,8 +278,38 @@ def match_claims(
                     now.chunk_id, soft_score, now.category.value,
                 )
             else:
-                match_quality = "strict"   # new claim — no match either pass
-                best_prev     = None
+                # ── Pass 3: topic keyword overlap ───────────────────────
+                # Catches same-topic claims phrased very differently across
+                # quarters (e.g. "737 production stabilising at 42/month"
+                # vs "ramping 737 production post-strike").
+                now_terms = _key_terms(now.claim)
+                topic_overlap: int         = 0
+                topic_prev:    Optional[Claim] = None
+
+                if len(now_terms) >= TOPIC_MIN_TERMS:
+                    for prev in prev_claims:
+                        if prev.category != now.category:
+                            continue
+                        prev_terms = _key_terms(prev.claim)
+                        if len(prev_terms) < TOPIC_MIN_TERMS:
+                            continue
+                        overlap = len(now_terms & prev_terms)
+                        if overlap > topic_overlap:
+                            topic_overlap = overlap
+                            topic_prev    = prev
+
+                if topic_overlap >= TOPIC_OVERLAP_MIN and topic_prev is not None:
+                    best_prev     = topic_prev
+                    best_score    = float(topic_overlap * 10)  # indicative score
+                    match_quality = "topic"
+                    logger.debug(
+                        "%s: topic match overlap=%d cat=%s terms=%s",
+                        now.chunk_id, topic_overlap, now.category.value,
+                        sorted(now_terms & _key_terms(topic_prev.claim)),
+                    )
+                else:
+                    match_quality = "strict"   # new claim — no match any pass
+                    best_prev     = None
 
         # ── Classify ───────────────────────────────────────────────────
         if best_prev is not None:
@@ -296,10 +357,12 @@ def match_claims(
     n_improved  = sum(1 for c in changes if c.change_type == ChangeType.improved)
     n_unchanged = sum(1 for c in changes if c.change_type == ChangeType.unchanged)
     n_soft      = sum(1 for c in changes if c.match_quality == "soft")
+    n_topic     = sum(1 for c in changes if c.match_quality == "topic")
 
     logger.info(
-        "Diff: %d changes  new=%d  worsened=%d  improved=%d  unchanged=%d  soft=%d",
-        len(changes), n_new, n_worsened, n_improved, n_unchanged, n_soft,
+        "Diff: %d changes  new=%d  worsened=%d  improved=%d  unchanged=%d  "
+        "soft=%d  topic=%d",
+        len(changes), n_new, n_worsened, n_improved, n_unchanged, n_soft, n_topic,
     )
 
     return changes

@@ -29,13 +29,15 @@ _TIER1_WORDS: frozenset[str] = frozenset({
     "may", "might", "could", "uncertain", "unclear", "contingent",
 })
 _TIER1_PHRASES: tuple[str, ...] = (
-    "subject to", "no assurance", "no guarantee", "forward-looking", "risk factors",
+    "subject to", "no assurance", "no guarantee", "cannot guarantee",
+    "subject to change", "forward-looking", "risk factors",
 )
 
 # Tier 2: moderate hedges
 _TIER2_WORDS: frozenset[str] = frozenset({
     "expect", "anticipate", "believe", "intend", "plan", "seek", "estimate",
     "approximately", "targeted", "potential", "possible",
+    "likely", "assume", "assumed", "projected",
 })
 _TIER2_PHRASES: tuple[str, ...] = ()   # none for Tier 2 currently
 

@@ -33,7 +33,7 @@ _TOPIC_STOP: frozenset[str] = frozenset({
     "could", "should", "about", "which", "going", "well", "just", "both",
     "when", "then", "each", "what", "some", "such", "these", "those",
     "still", "after", "before", "during", "said", "continue", "continued",
-    "remains", "remain", "remain", "given", "strong", "good", "very",
+    "remains", "remain", "given", "strong", "good", "very",
 })
 _TERM_RE: re.Pattern = re.compile(r"[A-Za-z0-9\-]+")
 
@@ -308,7 +308,7 @@ def match_claims(
                         sorted(now_terms & _key_terms(topic_prev.claim)),
                     )
                 else:
-                    match_quality = "strict"   # new claim — no match any pass
+                    match_quality = "new"      # no match found in any pass
                     best_prev     = None
 
         # ── Classify ───────────────────────────────────────────────────

@@ -98,10 +98,14 @@ def _polarity_proxy(change: str, sev: str) -> str | None:
       - "WORSENED" in change → "negative"
       - "NEW" in change AND sev in _HIGH_SEV_LABELS → "mixed"
       - All other rows → None (excluded)
+
+    Severity is normalised to Title Case before comparison so that
+    reports with "CRITICAL", "critical", or " High " all match correctly.
     """
-    if "WORSENED" in change:
+    sev_normalised = sev.strip().title()
+    if "WORSENED" in change.upper():
         return "negative"
-    if "NEW" in change and sev in _HIGH_SEV_LABELS:
+    if "NEW" in change.upper() and sev_normalised in _HIGH_SEV_LABELS:
         return "mixed"
     return None
 

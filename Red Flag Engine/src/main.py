@@ -20,7 +20,7 @@ Flags:
     --selfcheck          Ingest+segment only — no API calls, prints chunk stats
     --data-dir PATH      Transcript root (default: <project_root>/data)
     --output-dir PATH    Report output dir (default: <project_root>/outputs)
-    --threshold INT      RapidFuzz match threshold 0–100 (default: 72)
+    --threshold INT      RapidFuzz match threshold 0–100 (default: 65)
     --log-level LEVEL    DEBUG | INFO | WARNING | ERROR (default: INFO)
 """
 
@@ -232,8 +232,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--threshold", type=int, default=72, metavar="INT",
-        help="RapidFuzz token_set_ratio match threshold 0–100 (default: 72).",
+        "--threshold", type=int, default=65, metavar="INT",
+        help="RapidFuzz token_set_ratio match threshold 0–100 (default: 65).",
     )
     parser.add_argument(
         "--log-level", default="INFO",
@@ -425,7 +425,7 @@ def run(
     log.info("Output dir    : %s", output_dir)
 
     # 1. Ingest
-    log.info("[1/5] Ingesting transcripts…")
+    log.info("[1/11] Ingesting transcripts…")
     doc_prev = load_doc(company, prev_period, prev_path)
     doc_now  = load_doc(company, now_period,  now_path)
 
@@ -435,7 +435,7 @@ def run(
         raise RuntimeError(f"Current transcript is empty after ingestion: {now_path}")
 
     # 2. Segment
-    log.info("[2/5] Segmenting transcripts…")
+    log.info("[2/11] Segmenting transcripts…")
     chunks_prev = segment_doc(doc_prev)
     chunks_now  = segment_doc(doc_now)
 
@@ -449,24 +449,24 @@ def run(
     # 3. Extract claims (both quarters)
     client = anthropic.Anthropic()
 
-    log.info("[3/5] Extracting claims — prior quarter (%d chunks)…", len(chunks_prev))
+    log.info("[3/11] Extracting claims — prior quarter (%d chunks)…", len(chunks_prev))
     claims_prev = extract_claims(chunks_prev, client)
 
-    log.info("[3/5] Extracting claims — current quarter (%d chunks)…", len(chunks_now))
+    log.info("[3/11] Extracting claims — current quarter (%d chunks)…", len(chunks_now))
     claims_now = extract_claims(chunks_now, client)
 
     log.info("  Claims: prior=%d  now=%d", len(claims_prev), len(claims_now))
 
     # 4. Diff
-    log.info("[4/10] Running change detection (threshold=%d)…", threshold)
+    log.info("[4/11] Running change detection (threshold=%d)…", threshold)
     changes = match_claims(claims_now, claims_prev, threshold=threshold)
 
     # 5. AI sensitivity assessment
-    log.info("[5/10] Assessing AI announcement sensitivity for %s…", company)
+    log.info("[5/11] Assessing AI announcement sensitivity for %s…", company)
     ai_sensitivity_md = assess_ai_sensitivity(company, claims_now, client)
 
     # 6. Hedging intensity
-    log.info("[6/10] Scoring hedging language intensity…")
+    log.info("[6/11] Scoring hedging language intensity…")
     try:
         now_hedge    = score_hedging(chunks_now)
         prev_hedge   = score_hedging(chunks_prev)
@@ -476,7 +476,7 @@ def run(
         hedge_deltas = []
 
     # 7. Abandoned metrics
-    log.info("[7/10] Detecting abandoned metrics…")
+    log.info("[7/11] Detecting abandoned metrics…")
     try:
         abandoned_metrics = find_abandoned_metrics(claims_now, claims_prev)
     except Exception as exc:
@@ -484,7 +484,7 @@ def run(
         abandoned_metrics = []
 
     # 8. Peer contagion
-    log.info("[8/10] Loading peer and supplier signals…")
+    log.info("[8/11] Loading peer and supplier signals…")
     try:
         peer_signals = load_peer_signals(
             company,

@@ -131,6 +131,7 @@ def _render_red_flags_table(changes: list[Change]) -> str:
 
     used_analyst = False
     used_soft    = False
+    used_topic   = False
 
     for i, c in enumerate(top, start=1):
         cat   = c.category.value.replace("_", " ").title()
@@ -150,7 +151,7 @@ def _render_red_flags_table(changes: list[Change]) -> str:
             used_soft = True
         elif c.match_quality == "topic":
             soft_tag  = " ⁽ᵀ⁾"
-            used_soft = True   # reuse flag — footnote block handles both
+            used_topic = True
 
         ev_now  = _escape_pipe(c.now_evidence) + analyst_tag + soft_tag
         ck_now  = f"`{c.now_chunk_id}`"
@@ -174,6 +175,7 @@ def _render_red_flags_table(changes: list[Change]) -> str:
             "> ⁽ˢ⁾ Matched via relaxed similarity (soft match) — verify manually against "
             "the original transcript."
         )
+    if used_topic:
         lines.append(
             "> ⁽ᵀ⁾ Matched via topic keyword overlap — same category, shared key terms. "
             "The claims discuss the same topic but with different phrasing or specifics; "
@@ -213,13 +215,15 @@ def _render_methodology() -> str:
         "via keyword regex and a speaker role (management / analyst / operator) via regex. "
         "Claude extracts at most 6 claims per chunk using a strict zero-temperature prompt "
         "that requires a verbatim evidence quote (≤ 25 words) for every claim; claims without "
-        "valid evidence are discarded. Quarter-over-quarter change detection uses a two-pass "
-        "RapidFuzz strategy: strict (`token_set_ratio` ≥ 65 on full claim text) then soft "
-        "(same category, first 60 chars, ≥ 60). Severity is assigned by a deterministic "
-        "heuristic based on change type, category risk, polarity, and confidence; "
-        "low-confidence claims are capped at severity 3. Supplementary signals — hedging "
-        "intensity, abandoned metrics, peer contagion, and backtest context — are computed "
-        "deterministically with no additional LLM calls.",
+        "valid evidence are discarded. Quarter-over-quarter change detection uses a three-pass "
+        "RapidFuzz strategy: (1) strict — `token_set_ratio` ≥ 65 on full claim text; "
+        "(2) soft — same category, first 60 chars, ≥ 60; "
+        "(3) topic — same category, ≥ 2 shared key terms (≥ 4 chars, non-stopword), "
+        "catching same-topic claims phrased very differently across quarters. "
+        "Severity is assigned by a deterministic heuristic based on change type, category "
+        "risk, polarity, and confidence; low-confidence claims are capped at severity 3. "
+        "Supplementary signals — hedging intensity, abandoned metrics, peer contagion, "
+        "and backtest context — are computed deterministically with no additional LLM calls.",
     ])
 
 

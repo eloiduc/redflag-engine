@@ -179,9 +179,18 @@ class _PolymarketClient:
                 # outcomePrices is a JSON string e.g. '["0.65","0.35"]'
                 prices_raw = item.get("outcomePrices", "[]")
                 prices = json.loads(prices_raw) if isinstance(prices_raw, str) else prices_raw
-                yes_prob  = float(prices[0]) if prices else 0.5
-                volume    = float(item.get("volume",    0) or 0)
-                liquidity = float(item.get("liquidity", 0) or 0)
+                try:
+                    yes_prob = max(0.0, min(1.0, float(prices[0]))) if prices else 0.5
+                except (TypeError, ValueError, IndexError):
+                    yes_prob = 0.5
+                try:
+                    volume = float(item.get("volume", 0) or 0)
+                except (TypeError, ValueError):
+                    volume = 0.0
+                try:
+                    liquidity = float(item.get("liquidity", 0) or 0)
+                except (TypeError, ValueError):
+                    liquidity = 0.0
                 end_date  = (item.get("endDate") or "")[:10] or None
                 slug      = item.get("slug", "")
                 url_str   = f"https://polymarket.com/event/{slug}" if slug else None
@@ -235,10 +244,16 @@ class _KalshiClient:
                 if not title:
                     continue
                 # Kalshi v2 prices are integers 0–100 (cents)
-                yes_ask  = item.get("yes_ask", 50)
-                yes_bid  = item.get("yes_bid", 50)
-                yes_prob = ((yes_ask + yes_bid) / 2) / 100.0
-                volume   = float(item.get("volume", 0) or 0) / 100  # cents → USD
+                try:
+                    yes_ask = float(item.get("yes_ask", 50) or 50)
+                    yes_bid = float(item.get("yes_bid", 50) or 50)
+                    yes_prob = max(0.0, min(1.0, (yes_ask + yes_bid) / 2 / 100.0))
+                except (TypeError, ValueError):
+                    yes_prob = 0.5
+                try:
+                    volume = float(item.get("volume", 0) or 0) / 100  # cents → USD
+                except (TypeError, ValueError):
+                    volume = 0.0
                 close    = (item.get("close_time") or "")[:10] or None
                 ticker   = item.get("ticker", "")
                 url_str  = f"https://kalshi.com/markets/{ticker}" if ticker else None

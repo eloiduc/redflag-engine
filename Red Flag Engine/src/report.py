@@ -204,6 +204,11 @@ def _render_limitations() -> str:
         "if a claim spans a chunk boundary.",
         "- **No investment advice.** No financial advice is provided or implied. The authors "
         "accept no liability for decisions made based on this output.",
+        "- **Polarity-based change detection.** WORSENED / IMPROVED signals reflect "
+        "LLM-assigned sentiment shifts, not numerical deltas. Quantitative deterioration "
+        "within the same sentiment bucket (e.g. margin guidance reduced from 15% to 12% "
+        "while remaining 'positive') will not be flagged. Always cross-reference findings "
+        "against the specific figures in the original transcripts.",
         "- **Not a substitute for primary source review.** Always read the original "
         "transcript before acting on any finding in this report.",
     ])

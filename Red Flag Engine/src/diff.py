@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 MATCH_THRESHOLD:      int = 65   # strict pass threshold
-SOFT_THRESHOLD:       int = 60   # soft pass threshold (same-category, first 60 chars)
+SOFT_THRESHOLD:       int = 65   # soft pass threshold (same-category, first 60 chars)
+                                  # Raised from 60→65: prevents false matches where two
+                                  # different-topic claims share only a common opener
+                                  # (e.g. "Boeing expects…").  Unmatched claims at this
+                                  # level fall safely to Pass 3 topic keyword matching.
 SOFT_WINDOW:          int = 60   # chars used for soft comparison
 
 # Pass 3: topic/keyword overlap — catches same topic, different phrasing
@@ -27,13 +31,21 @@ TOPIC_MIN_TERMS:      int = 3    # both claims must have ≥ this many key terms
 
 # Generic words that add noise to topic matching — keep this list tight so
 # that domain terms like "revenue", "margin", "guidance" still match.
+# Earnings-call noise words (management / expects / company / quarter / year)
+# are included because they appear in virtually every claim and do NOT
+# discriminate between topics — requiring them as "shared key terms" would
+# produce false matches between claims about completely different subjects.
 _TOPIC_STOP: frozenset[str] = frozenset({
+    # Function / filler words
     "that", "this", "with", "from", "have", "will", "been", "were", "they",
     "also", "more", "over", "into", "than", "their", "there", "would",
     "could", "should", "about", "which", "going", "well", "just", "both",
     "when", "then", "each", "what", "some", "such", "these", "those",
     "still", "after", "before", "during", "said", "continue", "continued",
     "remains", "remain", "given", "strong", "good", "very",
+    # Earnings-transcript noise — present in nearly every claim regardless of topic
+    "management", "expects", "expected", "company", "quarter",
+    "business", "year", "fiscal", "reported",
 })
 _TERM_RE: re.Pattern = re.compile(r"[A-Za-z0-9\-]+")
 

@@ -68,12 +68,18 @@ _COMPANY_NAMES: dict[str, str] = {
     "ABNB": "Airbnb",
 }
 
-# Positive-framing words: a Yes outcome is directionally good for the company
+# Positive-framing words: a Yes outcome is directionally good for the company.
+# Negation-qualified verbs (avoid / prevent / survive / withstand / overcome)
+# are included because market questions like "Will X avoid bankruptcy?" have
+# Yes = company escapes bad outcome = bullish.  Without these, the negative
+# noun ("bankruptcy") would dominate and produce the wrong framing signal.
 _POS_FRAME: frozenset[str] = frozenset({
     "reach", "achieve", "beat", "exceed", "above", "grow", "gain", "approve",
     "certify", "complete", "deliver", "pass", "win", "launch", "secure",
     "maintain", "increase", "expand", "recover", "profitable", "profit",
     "success", "upgrade", "raise", "positive", "growth", "resume",
+    # Negation-qualified verbs: Yes = company avoids / escapes a negative outcome
+    "avoid", "prevent", "survive", "withstand", "overcome", "resolve",
 })
 
 # Negative-framing words: a Yes outcome is directionally bad for the company

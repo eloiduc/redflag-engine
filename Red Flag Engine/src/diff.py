@@ -428,7 +428,7 @@ def find_abandoned_metrics(
         if all_positive and cat != Category.guidance:
             continue
 
-        # ── Check for any current-quarter match above SOFT_THRESHOLD ─────
+        # ── Pass 1/2: any current-quarter claim fuzzy-matches a prior claim ─
         category_abandoned = True
         for prev_c in prev_claims_in_cat:
             for now_c in claims_now:
@@ -438,6 +438,24 @@ def find_abandoned_metrics(
                     break
             if not category_abandoned:
                 break
+
+        # ── Pass 3: topic keyword overlap (same category, mirrors match_claims) ─
+        # Catches cases where the same topic is discussed with different phrasing,
+        # preventing false "abandoned" flags for topic-matched claims.
+        if category_abandoned:
+            now_same_cat = [nc for nc in claims_now if nc.category == cat]
+            for prev_c in prev_claims_in_cat:
+                prev_terms = _key_terms(prev_c.claim)
+                if len(prev_terms) < TOPIC_MIN_TERMS:
+                    continue
+                for now_c in now_same_cat:
+                    now_terms = _key_terms(now_c.claim)
+                    if (len(now_terms) >= TOPIC_MIN_TERMS
+                            and len(now_terms & prev_terms) >= TOPIC_OVERLAP_MIN):
+                        category_abandoned = False
+                        break
+                if not category_abandoned:
+                    break
 
         if not category_abandoned:
             continue

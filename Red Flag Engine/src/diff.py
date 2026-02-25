@@ -116,7 +116,7 @@ class Change(BaseModel):
     prev_chunk_id:    Optional[str] = None
     # Similarity metadata
     match_score:      float = 0.0
-    match_quality:    str   = "strict"  # "strict" | "soft"
+    match_quality:    str   = "strict"  # "strict" | "soft" | "topic" | "new"
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ def match_claims(
     Pass 1 (strict):  token_set_ratio on full claim text >= MATCH_THRESHOLD (65).
                       Produces match_quality="strict".
     Pass 2 (soft):    For unmatched claims — token_set_ratio on the first
-                      SOFT_WINDOW (60) chars, same category, >= SOFT_THRESHOLD (60).
+                      SOFT_WINDOW (60) chars, same category, >= SOFT_THRESHOLD (65).
                       Produces match_quality="soft".
     Pass 3 (topic):   For still-unmatched claims — keyword overlap: ≥ TOPIC_OVERLAP_MIN
                       (2) shared key terms (≥ 4 chars, non-stopword), same category.

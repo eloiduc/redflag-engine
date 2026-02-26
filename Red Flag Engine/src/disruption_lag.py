@@ -630,12 +630,19 @@ def _parse_llm_response(
         logger.error("Disruption lag: JSON parse error — %s | raw: %.200s", exc, raw)
         return None
 
+    if not isinstance(data, dict):
+        logger.error(
+            "Disruption lag: LLM returned %s instead of a JSON object — skipping",
+            type(data).__name__,
+        )
+        return None
+
     # overall_score from LLM is used only as a fallback; we recompute it
     # deterministically below from the validated signals to guarantee
     # self-consistency (LLM could assert "CRITICAL" and then all signals
     # get dropped, or assert "LOW" while signals compute to 28-month lags).
-    management_awareness = str(data.get("management_awareness", "medium")).lower()
-    analyst_narrative    = str(data.get("analyst_narrative", ""))
+    management_awareness = str(data.get("management_awareness") or "medium").lower()
+    analyst_narrative    = str(data.get("analyst_narrative") or "")
     raw_signals = data.get("signals", [])
     if not isinstance(raw_signals, list):
         logger.warning("Disruption lag: 'signals' field is not a list (%r) — defaulting to []",

@@ -148,8 +148,8 @@ def load_peer_signals(
         logger.info("No peer map entry for %s — skipping peer signals", company_upper)
         return []
 
-    suppliers: list[str] = entry.get("suppliers", [])
-    peers:     list[str] = entry.get("peers",     [])
+    suppliers: list[str] = entry.get("suppliers") or []
+    peers:     list[str] = entry.get("peers")     or []
 
     # Process suppliers first so they get priority slots
     ordered: list[tuple[str, str]] = (

@@ -660,7 +660,7 @@ def _parse_llm_response(
                 type(s).__name__,
             )
             continue
-        cap_id = s.get("capability_id", "")
+        cap_id = s.get("capability_id") or ""
         cap    = _CAPABILITY_BY_ID.get(cap_id)
         if cap is None:
             logger.warning("Disruption lag: unknown capability_id '%s' — skipping", cap_id)

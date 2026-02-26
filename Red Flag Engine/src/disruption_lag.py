@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -384,7 +384,7 @@ class DisruptionSignal(BaseModel):
     capability_name:           str
     viable_since:              str    # ISO date string
     lag_months:                int
-    lag_label:                 str    # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "FRESH"
+    lag_label:                 str    # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
     replaceability_score:      float  # 0.0–1.0
     replaceability_reasoning:  str
     management_awareness_note: str
@@ -626,7 +626,11 @@ def _parse_llm_response(
     overall_score        = str(data.get("overall_score", "MINIMAL")).upper()
     management_awareness = str(data.get("management_awareness", "medium")).lower()
     analyst_narrative    = str(data.get("analyst_narrative", ""))
-    raw_signals: list    = data.get("signals", [])
+    raw_signals = data.get("signals", [])
+    if not isinstance(raw_signals, list):
+        logger.warning("Disruption lag: 'signals' field is not a list (%r) — defaulting to []",
+                       type(raw_signals).__name__)
+        raw_signals = []
 
     if overall_score not in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"}:
         overall_score = "MINIMAL"
@@ -641,6 +645,14 @@ def _parse_llm_response(
             logger.warning("Disruption lag: unknown capability_id '%s' — skipping", cap_id)
             continue
 
+        moat_claim = s.get("moat_claim", "").strip()
+        if not moat_claim:
+            logger.warning(
+                "Disruption lag: signal with capability '%s' has empty moat_claim — skipping",
+                cap_id,
+            )
+            continue
+
         try:
             rep_score = max(0.0, min(1.0, float(s.get("replaceability_score", 0.5))))
         except (TypeError, ValueError):
@@ -649,7 +661,7 @@ def _parse_llm_response(
         lag_months = _compute_lag_months(cap["viable_since"], today)
 
         signals.append(DisruptionSignal(
-            moat_claim                = s.get("moat_claim", ""),
+            moat_claim                = moat_claim,
             capability_id             = cap_id,
             capability_name           = cap["name"],
             viable_since              = cap["viable_since"].isoformat(),
@@ -710,11 +722,14 @@ def compute_disruption_lag(
     viable_caps = [c for c in _CAPABILITY_DB if c["viable_since"] <= today]
 
     # 3. Build prompt
+    # Escape any literal braces in transcript-derived text so str.format() does
+    # not misinterpret them as named placeholders and raise a KeyError.
+    safe_moat_claims = _format_moat_claims(moat_claims).replace("{", "{{").replace("}", "}}")
     user_prompt = _USER_TEMPLATE.format(
         company           = company,
         analysis_date     = today.strftime("%B %d, %Y"),
         n_claims          = len(moat_claims),
-        moat_claims_text  = _format_moat_claims(moat_claims),
+        moat_claims_text  = safe_moat_claims,
         capabilities_text = _format_capabilities(viable_caps),
     )
 

@@ -382,20 +382,11 @@ def _render_prediction_markets(
     return "\n".join(lines)
 
 
-_DISRUPTION_LAG_SCORE_LABEL: dict[str, str] = {
-    "CRITICAL": "CRITICAL",
-    "HIGH":     "HIGH",
-    "MEDIUM":   "MEDIUM",
-    "LOW":      "LOW",
-    "MINIMAL":  "MINIMAL",
-}
-
-
 def _render_disruption_lag(result: "DisruptionLagResult") -> str:
     """Render the Disruption Lag Analysis section as Markdown."""
     lines = ["## Disruption Lag Analysis", ""]
 
-    score_label = _DISRUPTION_LAG_SCORE_LABEL.get(result.overall_score, result.overall_score)
+    score_label = result.overall_score
     lines.append(f"**Disruption Lag Score:** {score_label}")
     lines.append(f"**Management AI Awareness:** {result.management_awareness.title()}")
     lines.append("")
@@ -441,7 +432,7 @@ def _render_disruption_lag(result: "DisruptionLagResult") -> str:
             f"*{sig.capability_name}*"
         )
         lines.append(f"> {_escape_pipe(sig.moat_claim)}")
-        lines.append(f"")
+        lines.append("")
         lines.append(f"*Replaceability ({sig.replaceability_score:.0%}):* "
                      f"{sig.replaceability_reasoning}")
         if sig.management_awareness_note:

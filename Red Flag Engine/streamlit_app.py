@@ -791,7 +791,7 @@ def page_view() -> None:
         if score_m:
             dl_score    = score_m.group(1)
             dl_aware    = aware_m.group(1) if aware_m else "—"
-            col_sc, col_aw, col_sp = st.columns([1, 1, 2])
+            col_sc, col_aw = st.columns([1, 1])
             col_sc.metric("Disruption Lag", dl_score)
             col_aw.metric("Mgmt. Awareness", dl_aware.title())
             fn = getattr(st, _dl_score_color.get(dl_score, "info"))

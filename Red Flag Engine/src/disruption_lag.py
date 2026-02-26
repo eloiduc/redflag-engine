@@ -369,6 +369,13 @@ _CAPABILITY_DB: list[dict] = [
 # O(1) lookup by capability id
 _CAPABILITY_BY_ID: dict[str, dict] = {c["id"]: c for c in _CAPABILITY_DB}
 
+# Replaceability threshold — signals below this are excluded (mirrors system prompt rule)
+_REPLACEABILITY_THRESHOLD: float = 0.4
+
+# Lag-label → numeric rank (used for deterministic overall_score derivation)
+_LABEL_RANK: dict[str, int] = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+_RANK_LABEL: dict[int, str] = {4: "CRITICAL", 3: "HIGH", 2: "MEDIUM", 1: "LOW", 0: "MINIMAL"}
+
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -659,6 +666,15 @@ def _parse_llm_response(
         except (TypeError, ValueError):
             rep_score = 0.5
 
+        # Hard-enforce the threshold stated in the system prompt — LLM occasionally
+        # returns borderline scores below 0.4 despite the explicit instruction.
+        if rep_score < _REPLACEABILITY_THRESHOLD:
+            logger.debug(
+                "Disruption lag: signal '%s' replaceability=%.2f < %.1f — skipping",
+                cap_id, rep_score, _REPLACEABILITY_THRESHOLD,
+            )
+            continue
+
         lag_months = _compute_lag_months(cap["viable_since"], today)
 
         signals.append(DisruptionSignal(
@@ -679,8 +695,6 @@ def _parse_llm_response(
 
     # Derive overall_score deterministically from validated signals so it is
     # always consistent with what the table shows.  LLM assertion is discarded.
-    _LABEL_RANK = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
-    _RANK_LABEL = {4: "CRITICAL", 3: "HIGH", 2: "MEDIUM", 1: "LOW", 0: "MINIMAL"}
     if signals:
         worst_rank = max(_LABEL_RANK.get(s.lag_label, 0) for s in signals)
         overall_score = _RANK_LABEL[worst_rank]

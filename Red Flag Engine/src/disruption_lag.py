@@ -672,7 +672,7 @@ def _parse_llm_response(
             )
             continue
 
-        moat_claim = s.get("moat_claim", "").strip()
+        moat_claim = (s.get("moat_claim") or "").strip()
         if not moat_claim:
             logger.warning(
                 "Disruption lag: signal with capability '%s' has empty moat_claim — skipping",
@@ -704,8 +704,8 @@ def _parse_llm_response(
             lag_months                = lag_months,
             lag_label                 = _lag_label(lag_months),
             replaceability_score      = round(rep_score, 2),
-            replaceability_reasoning  = s.get("replaceability_reasoning", ""),
-            management_awareness_note = s.get("management_awareness_note", ""),
+            replaceability_reasoning  = str(s.get("replaceability_reasoning") or ""),
+            management_awareness_note = str(s.get("management_awareness_note") or ""),
             best_analogue             = _best_analogue_str(cap),
         ))
 

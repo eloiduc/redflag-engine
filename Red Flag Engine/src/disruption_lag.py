@@ -647,10 +647,22 @@ def _parse_llm_response(
 
     signals: list[DisruptionSignal] = []
     for s in raw_signals:
+        if not isinstance(s, dict):
+            logger.warning(
+                "Disruption lag: signal element is not a dict (%s) — skipping",
+                type(s).__name__,
+            )
+            continue
         cap_id = s.get("capability_id", "")
         cap    = _CAPABILITY_BY_ID.get(cap_id)
         if cap is None:
             logger.warning("Disruption lag: unknown capability_id '%s' — skipping", cap_id)
+            continue
+        if cap["viable_since"] > today:
+            logger.warning(
+                "Disruption lag: capability '%s' not yet viable (viable_since=%s) — skipping",
+                cap_id, cap["viable_since"],
+            )
             continue
 
         moat_claim = s.get("moat_claim", "").strip()

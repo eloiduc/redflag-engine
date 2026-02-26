@@ -623,7 +623,10 @@ def _parse_llm_response(
         logger.error("Disruption lag: JSON parse error — %s | raw: %.200s", exc, raw)
         return None
 
-    overall_score        = str(data.get("overall_score", "MINIMAL")).upper()
+    # overall_score from LLM is used only as a fallback; we recompute it
+    # deterministically below from the validated signals to guarantee
+    # self-consistency (LLM could assert "CRITICAL" and then all signals
+    # get dropped, or assert "LOW" while signals compute to 28-month lags).
     management_awareness = str(data.get("management_awareness", "medium")).lower()
     analyst_narrative    = str(data.get("analyst_narrative", ""))
     raw_signals = data.get("signals", [])
@@ -632,8 +635,6 @@ def _parse_llm_response(
                        type(raw_signals).__name__)
         raw_signals = []
 
-    if overall_score not in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"}:
-        overall_score = "MINIMAL"
     if management_awareness not in {"low", "medium", "high"}:
         management_awareness = "medium"
 
@@ -675,6 +676,16 @@ def _parse_llm_response(
 
     # Sort: longest lag first, then highest replaceability
     signals.sort(key=lambda sig: (-sig.lag_months, -sig.replaceability_score))
+
+    # Derive overall_score deterministically from validated signals so it is
+    # always consistent with what the table shows.  LLM assertion is discarded.
+    _LABEL_RANK = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+    _RANK_LABEL = {4: "CRITICAL", 3: "HIGH", 2: "MEDIUM", 1: "LOW", 0: "MINIMAL"}
+    if signals:
+        worst_rank = max(_LABEL_RANK.get(s.lag_label, 0) for s in signals)
+        overall_score = _RANK_LABEL[worst_rank]
+    else:
+        overall_score = "MINIMAL"
 
     return DisruptionLagResult(
         overall_score        = overall_score,

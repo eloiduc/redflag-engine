@@ -153,9 +153,12 @@ def assess_ai_sensitivity(
             "(No claims extracted — analysis based on company profile only.)"
         )
 
+    # Escape any literal braces in claims text so str.format() does not
+    # misinterpret them as named placeholders and raise a KeyError.
+    safe_claims_text = claims_text.replace("{", "{{").replace("}", "}}")
     user_prompt = _USER_PROMPT_TEMPLATE.format(
         company=company,
-        claims_text=claims_text,
+        claims_text=safe_claims_text,
     )
 
     for attempt in (1, 2):

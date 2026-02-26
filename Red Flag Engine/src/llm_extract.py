@@ -135,11 +135,15 @@ _CORP_SUFFIX_PATTERN = re.compile(
 # ---------------------------------------------------------------------------
 
 def _build_user_prompt(chunk: Chunk) -> str:
+    # Escape any literal braces in raw transcript text so str.format() does
+    # not misinterpret them as named placeholders and raise a KeyError.
+    # chunk_id / section / speaker_role are all internally generated (safe).
+    safe_chunk_text = chunk.text.replace("{", "{{").replace("}", "}}")
     return _USER_PROMPT_TEMPLATE.format(
         chunk_id=chunk.chunk_id,
         section=chunk.section,
         speaker_role=chunk.speaker_role,
-        chunk_text=chunk.text,
+        chunk_text=safe_chunk_text,
     )
 
 

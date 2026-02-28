@@ -799,8 +799,6 @@ def page_view() -> None:
                 + _peer_info
             )
 
-    st.divider()
-
     # ── AI Announcement Sensitivity ──────────────────────────────────────────
     ai_sec = sections.get("AI Announcement Sensitivity", "")
     if ai_sec:
@@ -879,6 +877,15 @@ def page_view() -> None:
                     "business functions appear economically replicable by currently "
                     "available AI and have not yet been repriced by the market."
                 )
+
+        # Analyst narrative (2-3 sentence PM-level summary, sits between
+        # the **Management AI Awareness:** line and ### Signals Detected)
+        narrative_m = re.search(
+            r"\*\*Management AI Awareness:\*\*[^\n]*\n\n(.+?)\n\n(?=###)",
+            dl_sec, re.DOTALL,
+        )
+        if narrative_m:
+            st.markdown(narrative_m.group(1).strip())
 
         # Signals table
         sig_block = re.search(

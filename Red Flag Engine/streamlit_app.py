@@ -292,6 +292,46 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
+# ── JS: force sidebar expand button visible after Streamlit re-renders ────────
+st.markdown("""
+<script>
+(function() {
+    function fixBtn() {
+        var sel = '[data-testid="stSidebarCollapsedControl"],[data-testid="collapsedControl"]';
+        var el = document.querySelector(sel);
+        if (el) {
+            el.style.cssText = [
+                'display:flex!important',
+                'visibility:visible!important',
+                'opacity:1!important',
+                'position:fixed!important',
+                'left:0!important',
+                'top:50%!important',
+                'transform:translateY(-50%)!important',
+                'z-index:99999!important',
+                'background:#1c1c1c!important',
+                'border:1px solid #444!important',
+                'border-left:none!important',
+                'border-radius:0 8px 8px 0!important',
+                'padding:10px 6px!important',
+                'cursor:pointer!important',
+            ].join(';');
+            el.querySelectorAll('svg,path,polygon').forEach(function(s) {
+                s.style.fill   = '#ddd';
+                s.style.stroke = '#ddd';
+                s.style.color  = '#ddd';
+            });
+        }
+    }
+    /* run immediately, on every DOM mutation, and every 300 ms */
+    fixBtn();
+    setInterval(fixBtn, 300);
+    new MutationObserver(fixBtn).observe(document.documentElement,
+        {childList: true, subtree: true, attributes: true});
+})();
+</script>
+""", unsafe_allow_html=True)
+
 # ── Ensure outputs/ and data/ exist at startup ───────────────────────────────
 os.makedirs(_OUTPUTS, exist_ok=True)
 os.makedirs(_DATA,    exist_ok=True)

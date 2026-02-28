@@ -261,17 +261,29 @@ hr {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    background-color: #111 !important;
-    border: 1px solid #2a2a2a !important;
-    border-radius: 0 4px 4px 0 !important;
+    background-color: #1a1a1a !important;
+    border: 1px solid #3a3a3a !important;
+    border-left: none !important;
+    border-radius: 0 6px 6px 0 !important;
+    z-index: 999 !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    padding: 8px 4px !important;
 }
 [data-testid="stSidebarCollapsedControl"] button,
 [data-testid="collapsedControl"] button {
-    color: #aaa !important;
-    background-color: #111 !important;
+    color: #ccc !important;
+    background-color: transparent !important;
+}
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="collapsedControl"] svg {
+    fill: #ccc !important;
+    color: #ccc !important;
 }
 [data-testid="stSidebarCollapseButton"] button {
-    color: #666 !important;
+    color: #555 !important;
 }
 [data-testid="stSidebarCollapseButton"] button:hover {
     color: #ccc !important;

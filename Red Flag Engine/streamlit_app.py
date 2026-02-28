@@ -721,19 +721,23 @@ def page_view() -> None:
 
     # ── Abandoned Metrics ─────────────────────────────────────────────────────
     ab_sec = sections.get("Abandoned Metrics", "")
-    if ab_sec:
-        with st.expander("Abandoned Metrics", expanded=True):
+    with st.expander("Abandoned Metrics", expanded=True):
+        if ab_sec:
             rows = _parse_md_table(ab_sec)
             if rows:
                 df_ab = pd.DataFrame(rows)
                 st.dataframe(df_ab, use_container_width=True, hide_index=True)
             else:
-                # Render the prose description if there's no table
                 body = "\n".join(
                     ln for ln in ab_sec.splitlines()
                     if not ln.startswith("## Abandoned Metrics")
                 ).strip()
                 st.markdown(body)
+        else:
+            st.caption(
+                "✓ No abandoned metrics detected — every topic discussed in the prior quarter "
+                "is still present in the current transcript."
+            )
 
     # ── Hedging Intensity ─────────────────────────────────────────────────────
     hg_sec = sections.get("Hedging Intensity", "")
@@ -764,12 +768,36 @@ def page_view() -> None:
 
     # ── Peer & Supplier Signals ───────────────────────────────────────────────
     ps_sec = sections.get("Peer & Supplier Signals", "")
-    if ps_sec:
-        with st.expander("Peer & Supplier Signals", expanded=False):
+    with st.expander("Peer & Supplier Signals", expanded=False):
+        if ps_sec:
             rows = _parse_md_table(ps_sec)
             if rows:
                 df_ps = pd.DataFrame(rows)
                 st.dataframe(df_ps, use_container_width=True, hide_index=True)
+        else:
+            # Load peer map to show which companies need to be analysed
+            _peer_map_path = _APP_ROOT / "peer_map.json"
+            _ticker = company_val.split()[0].upper()
+            _peer_info = ""
+            if _peer_map_path.exists():
+                try:
+                    import json as _json
+                    _pm = _json.loads(_peer_map_path.read_text())
+                    _entry = _pm.get(_ticker, {})
+                    _peers = _entry.get("peers", [])
+                    _sups  = _entry.get("suppliers", [])
+                    if _peers or _sups:
+                        _peer_info = (
+                            f"  \nPeers to analyse: **{', '.join(_peers) or 'none mapped'}**"
+                            f"  \nSuppliers to analyse: **{', '.join(_sups) or 'none mapped'}**"
+                        )
+                except Exception:
+                    pass
+            st.caption(
+                f"No peer/supplier reports found for **{_ticker}** yet.  \n"
+                f"Run a *New Analysis* for each related company to surface cross-sector signals."
+                + _peer_info
+            )
 
     st.divider()
 

@@ -254,6 +254,29 @@ hr {
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
+
+/* ── Sidebar collapse/expand arrow — always visible ─────────────────────── */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: #111 !important;
+    border: 1px solid #2a2a2a !important;
+    border-radius: 0 4px 4px 0 !important;
+}
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button {
+    color: #aaa !important;
+    background-color: #111 !important;
+}
+[data-testid="stSidebarCollapseButton"] button {
+    color: #666 !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover {
+    color: #ccc !important;
+    background-color: #1a1a1a !important;
+}
 </style>
 """, unsafe_allow_html=True)
 

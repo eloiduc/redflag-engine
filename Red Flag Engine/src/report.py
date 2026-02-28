@@ -67,7 +67,9 @@ def _severity_label(score: int) -> str:
 
 
 def _escape_pipe(text: str) -> str:
-    """Escape pipe characters so they don't break Markdown table cells."""
+    """Escape pipe characters and strip newlines so they don't break Markdown table cells."""
+    # Newlines inside a cell break the table row across lines → wrong cell count → row dropped
+    text = " ".join(text.splitlines())   # collapse any \n / \r\n to a single space
     return text.replace("|", "\\|")
 
 

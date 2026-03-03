@@ -236,9 +236,11 @@ def _render_methodology() -> str:
         "entirely differently across quarters. "
         "Severity is assigned by a deterministic heuristic based on change type, category "
         "risk, polarity, and confidence; low-confidence claims are capped at severity 3. "
-        "Hedging intensity uses a two-tier word list: Tier 1 (may/might/could/uncertain/"
-        "contingent/no guarantee/subject to change) and Tier 2 (expect/anticipate/believe/"
-        "likely/assume/projected/potential); safe-harbour paragraphs are stripped before scoring. "
+        "Hedging intensity uses a two-tier word list: Tier 1 words (may/might/could/uncertain/"
+        "unclear/contingent) and Tier 1 phrases (subject to/no assurance/no guarantee/"
+        "cannot guarantee/forward-looking/risk factors); "
+        "Tier 2 (expect/anticipate/believe/likely/assume/projected/potential); "
+        "safe-harbour paragraphs are stripped before scoring. "
         "Supplementary signals — hedging intensity, abandoned metrics, peer contagion, "
         "and backtest context — are computed deterministically with no additional LLM calls.",
     ])
@@ -274,7 +276,8 @@ def _render_hedging_intensity(deltas: "list[HedgeDelta]") -> str:
     lines = [
         "## Hedging Intensity",
         "",
-        "Hedge word density (Tier 1: may/might/could/uncertain/contingent; "
+        "Hedge word density (Tier 1: may/might/could/uncertain/unclear/contingent/"
+        "subject to/no assurance/no guarantee/cannot guarantee/forward-looking/risk factors; "
         "Tier 2: expect/anticipate/believe/likely/assume/projected/potential…) "
         "per 100 words, by section. "
         "FLAG marks sections where hedging shifted by > 3 percentage points in either direction.",

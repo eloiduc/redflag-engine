@@ -38,21 +38,25 @@ _SEP_LEN   = len(_SEPARATOR)   # 2
 _SPEAKER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # operator: line starts with "OPERATOR" or "Operator"
     ("operator", re.compile(r"^OPERATOR\b|^Operator\b", re.MULTILINE)),
-    # analyst: "your next question", "next question comes from", or
-    # a capitalised name followed by a colon at line start (analyst intro lines)
-    ("analyst",  re.compile(
-        r"^[A-Z][A-Z\s\-']+:\s|"               # e.g. "JOHN DOE: ..."
-        r"your next question|"
-        r"next question comes from|"
-        r"our next question|"
-        r"\banalyst\b",
-        re.MULTILINE | re.IGNORECASE,
-    )),
-    # management: CFO/CEO/President/VP titles, or "Thank you, operator" opener
+    # management: CFO/CEO/President/VP titles, or "Thank you, operator" opener.
+    # Checked BEFORE analyst so that all-caps management speaker lines
+    # (e.g. "DAVID CALHOUN: ...") are not misclassified by the analyst pattern.
     ("management", re.compile(
         r"\b(CFO|CEO|President|COO|CTO|EVP|SVP|VP|"
         r"Chief Financial|Chief Executive|Chief Operating)\b|"
         r"^Thank you,?\s+[Oo]perator",
+        re.MULTILINE | re.IGNORECASE,
+    )),
+    # analyst: explicit Q&A transition phrases, or an all-caps speaker name at
+    # line start that was NOT matched as management above.
+    # NOTE: the broad \banalyst\b catch-all is intentionally omitted — it fires
+    # on management chunks that mention "our analyst community" or "sell-side
+    # analysts", producing incorrect role annotations.
+    ("analyst",  re.compile(
+        r"^[A-Z][A-Z\s\-']+:\s|"               # e.g. "JOHN DOE: ..."
+        r"your next question|"
+        r"next question comes from|"
+        r"our next question",
         re.MULTILINE | re.IGNORECASE,
     )),
 ]

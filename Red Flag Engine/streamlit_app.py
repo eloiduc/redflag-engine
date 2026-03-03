@@ -654,15 +654,21 @@ def page_view() -> None:
     if exec_sec:
         st.subheader("Executive Summary")
         bullets = re.findall(r"^- (.+)$", exec_sec, re.MULTILINE)
-        for bullet in bullets:
-            if "WORSENED" in bullet:
-                st.error(bullet)
-            elif "NEW" in bullet:
-                st.info(bullet)
-            elif "IMPROVED" in bullet:
-                st.success(bullet)
-            else:
-                st.warning(bullet)
+        if bullets:
+            for bullet in bullets:
+                if "WORSENED" in bullet:
+                    st.error(bullet)
+                elif "NEW" in bullet:
+                    st.info(bullet)
+                elif "IMPROVED" in bullet:
+                    st.success(bullet)
+                else:
+                    st.warning(bullet)
+        else:
+            # No bullet-list items — the section contains a plain-text
+            # "no material changes" notice.  Surface it explicitly so the
+            # subheader is never left hanging with a blank body.
+            st.success("No material changes detected this quarter.")
 
     st.divider()
 
@@ -774,6 +780,8 @@ def page_view() -> None:
             if rows:
                 df_ps = pd.DataFrame(rows)
                 st.dataframe(df_ps, use_container_width=True, hide_index=True)
+            else:
+                st.caption("Peer & Supplier Signals section present but no signals table could be parsed.")
         else:
             # Load peer map to show which companies need to be analysed
             _peer_map_path = _APP_ROOT / "peer_map.json"

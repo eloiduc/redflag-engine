@@ -30,7 +30,9 @@ _TIER1_WORDS: frozenset[str] = frozenset({
 })
 _TIER1_PHRASES: tuple[str, ...] = (
     "subject to", "no assurance", "no guarantee", "cannot guarantee",
-    "subject to change", "forward-looking", "risk factors",
+    # "subject to change" removed — it is a subset of "subject to" and would
+    # be counted twice (once for "subject to" and once for "subject to change").
+    "forward-looking", "risk factors",
 )
 
 # Tier 2: moderate hedges
@@ -118,8 +120,13 @@ def _count_matches(text: str) -> int:
 def score_hedging(chunks: "list[Chunk]") -> dict[str, float]:
     """Return a mapping of section label → hedge score (matches per 100 words).
 
-    Safe-harbour paragraphs are stripped before counting.  Scores for chunks
-    with the same section label are averaged.
+    Safe-harbour paragraphs are stripped before counting.  Scores are computed
+    as a *weighted* rate across all chunks in the same section (total hedge
+    matches ÷ total words × 100), giving proportional weight to longer chunks.
+
+    Naive per-chunk averaging is intentionally avoided: it would give equal
+    weight to a 50-word analyst question and a 2 000-word management response,
+    inflating scores for sections with many short Q&A exchange chunks.
 
     Args:
         chunks: Segmented transcript chunks (current or prior quarter).
@@ -128,8 +135,9 @@ def score_hedging(chunks: "list[Chunk]") -> dict[str, float]:
         Dict keyed by section label (e.g. ``"guidance"``, ``"demand"``).
         Sections with zero total words after stripping are skipped.
     """
-    # Accumulate (total_matches, total_words) per section
-    section_data: dict[str, list[float]] = {}
+    # Accumulate (total_matches, total_words) per section — weighted aggregation
+    section_matches: dict[str, int]   = {}
+    section_words:   dict[str, int]   = {}
 
     for chunk in chunks:
         text = _strip_safe_harbour(chunk.text)
@@ -137,12 +145,15 @@ def score_hedging(chunks: "list[Chunk]") -> dict[str, float]:
         if not words:
             continue
         count = _count_matches(text)
-        score = count / len(words) * 100.0
-        section_data.setdefault(chunk.section, []).append(score)
+        sec   = chunk.section
+        section_matches[sec] = section_matches.get(sec, 0) + count
+        section_words[sec]   = section_words.get(sec, 0)   + len(words)
 
     result: dict[str, float] = {}
-    for section, scores in section_data.items():
-        result[section] = round(sum(scores) / len(scores), 2)
+    for section, total_words in section_words.items():
+        if total_words == 0:
+            continue
+        result[section] = round(section_matches[section] / total_words * 100.0, 2)
 
     logger.debug("Hedge scores by section: %s", result)
     return result
